@@ -1,0 +1,6 @@
+from .base import *  # noqa: F403,F401
+
+DEBUG = False
+SECURE_BROWSER_XSS_FILTER = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True

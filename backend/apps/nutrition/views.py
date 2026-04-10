@@ -1,0 +1,54 @@
+from django.shortcuts import get_object_or_404
+from rest_framework import mixins, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from apps.activities.models import ActivityLog
+
+from .filters import FoodLogFilter
+from .models import FoodLog
+from .serializers import FoodLogSerializer, MealRecommendationSerializer
+from .services import ensure_daily_goal, get_or_create_meal_recommendation, search_open_food_facts
+
+
+class MealRecommendationViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = MealRecommendationSerializer
+
+    def retrieve(self, request, pk=None):
+        activity_log = get_object_or_404(
+            ActivityLog.objects.select_related("user", "activity_type"),
+            pk=pk,
+            user=request.user,
+        )
+        recommendation = get_or_create_meal_recommendation(activity_log)
+        return Response(self.get_serializer(recommendation).data)
+
+
+class FoodSearchViewSet(viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=["get"])
+    def search(self, request):
+        query = request.query_params.get("q", "").strip()
+        category = request.query_params.get("category", "balanced").strip() or "balanced"
+        if not query:
+            return Response([])
+        return Response(search_open_food_facts(query=query, preference=category, limit=12))
+
+
+class FoodLogViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = FoodLogSerializer
+    filterset_class = FoodLogFilter
+    search_fields = ("food_name", "open_food_facts_id")
+    ordering_fields = ("logged_at", "calories", "protein_g")
+    ordering = ("-logged_at",)
+
+    def get_queryset(self):
+        return FoodLog.objects.filter(user=self.request.user).order_by("-logged_at")
+
+    def perform_create(self, serializer):
+        food_log = serializer.save(user=self.request.user)
+        ensure_daily_goal(self.request.user, food_log.logged_at.date())
