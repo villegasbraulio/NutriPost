@@ -13,6 +13,9 @@ env = environ.Env(
     CORS_ALLOWED_ORIGINS=(list, ["http://127.0.0.1:5173", "http://localhost:5173"]),
     CSRF_TRUSTED_ORIGINS=(list, ["http://127.0.0.1:5173", "http://localhost:5173"]),
     OFF_API_BASE_URL=(str, "https://world.openfoodfacts.org"),
+    GROQ_API_KEY=(str, ""),
+    GROQ_API_BASE_URL=(str, "https://api.groq.com/openai/v1"),
+    GROQ_MODEL_NAME=(str, "llama-3.3-70b-versatile"),
 )
 environ.Env.read_env(ROOT_DIR / ".env")
 
@@ -34,6 +37,7 @@ INSTALLED_APPS = [
     "apps.users",
     "apps.activities",
     "apps.nutrition",
+    "apps.assistant",
     "apps.dashboard",
 ]
 
@@ -129,3 +133,6 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS")
 
 OPEN_FOOD_FACTS_BASE_URL = env("OFF_API_BASE_URL")
+GROQ_API_KEY = env("GROQ_API_KEY", default="")
+GROQ_API_BASE_URL = env("GROQ_API_BASE_URL", default="https://api.groq.com/openai/v1")
+GROQ_MODEL_NAME = env("GROQ_MODEL_NAME", default="llama-3.3-70b-versatile")

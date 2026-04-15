@@ -15,13 +15,14 @@ import { Link } from "react-router-dom";
 
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { StatCard } from "../components/StatCard";
+import { WeeklyInsightCard } from "../components/WeeklyInsightCard";
 import { useAuth } from "../hooks/useAuth";
 import { useDashboard } from "../hooks/useDashboard";
 import { formatDateLabel } from "../utils/date";
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const { summary, streak, progress, loading } = useDashboard("7d");
+  const { summary, streak, progress, insight, insightLoading, loading, refreshInsight } = useDashboard("7d");
 
   if (loading || !summary) {
     return (
@@ -67,6 +68,8 @@ export function DashboardPage() {
           </div>
         </div>
       </section>
+
+      <WeeklyInsightCard insight={insight} loading={insightLoading} onRefresh={refreshInsight} />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Calories burned today" value={today.calories_burned || 0} icon={Flame} accent="primary" />

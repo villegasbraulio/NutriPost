@@ -5,6 +5,10 @@ export const nutritionService = {
     const { data } = await apiClient.get(`/nutrition/recommendations/${activityLogId}/`);
     return data;
   },
+  async parseMeal(description) {
+    const { data } = await apiClient.post("/nutrition/parse-meal/", { description });
+    return data;
+  },
   async searchFoods(query, category = "balanced") {
     const { data } = await apiClient.get("/nutrition/foods/search/", {
       params: { q: query, category },

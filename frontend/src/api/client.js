@@ -24,6 +24,29 @@ const flushQueue = (error) => {
   queuedRequests = [];
 };
 
+function logApiError(error) {
+  const config = error.config || {};
+  const method = (config.method || "GET").toUpperCase();
+  const url = `${config.baseURL || ""}${config.url || ""}`;
+  const status = error.response?.status || "network";
+  const payload = error.response?.data;
+
+  console.groupCollapsed(`[NutriPost API Error] ${method} ${url} -> ${status}`);
+  console.error("Axios error:", error);
+  console.info("Request:", {
+    method,
+    url,
+    params: config.params,
+    data: config.data,
+  });
+  console.info("Response:", {
+    status: error.response?.status,
+    statusText: error.response?.statusText,
+    data: payload,
+  });
+  console.groupEnd();
+}
+
 apiClient.interceptors.request.use((config) => ({
   ...config,
   withCredentials: true,
@@ -44,6 +67,7 @@ apiClient.interceptors.response.use(
       originalRequest?._retry ||
       originalRequest?.url?.includes("/auth/refresh/")
     ) {
+      logApiError(error);
       return Promise.reject(error);
     }
 
@@ -69,6 +93,7 @@ apiClient.interceptors.response.use(
     } catch (refreshError) {
       flushQueue(refreshError);
       window.dispatchEvent(new Event("auth:expired"));
+      logApiError(refreshError);
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;

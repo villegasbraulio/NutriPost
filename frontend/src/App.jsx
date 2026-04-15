@@ -5,6 +5,7 @@ import { DashboardLayout } from "./layouts/DashboardLayout";
 import { ActivityDetailPage } from "./pages/ActivityDetailPage";
 import { ActivityHistoryPage } from "./pages/ActivityHistoryPage";
 import { ActivityLogPage } from "./pages/ActivityLogPage";
+import { AssistantPage } from "./pages/AssistantPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -28,6 +29,7 @@ export default function App() {
         }
       >
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/assistant" element={<AssistantPage />} />
         <Route path="/activities/log" element={<ActivityLogPage />} />
         <Route path="/activities/logs" element={<ActivityHistoryPage />} />
         <Route path="/activities/logs/:id" element={<ActivityDetailPage />} />

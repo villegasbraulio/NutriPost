@@ -13,4 +13,8 @@ export const dashboardService = {
     const { data } = await apiClient.get("/dashboard/progress/");
     return data;
   },
+  async getInsight() {
+    const { data } = await apiClient.get("/dashboard/insights/");
+    return data;
+  },
 };

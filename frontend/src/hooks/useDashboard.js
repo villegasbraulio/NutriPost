@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { dashboardService } from "../services/dashboardService";
 
@@ -48,7 +48,21 @@ export function useDashboard(period = "7d") {
   const [summary, setSummary] = useState(null);
   const [streak, setStreak] = useState(0);
   const [progress, setProgress] = useState([]);
+  const [insight, setInsight] = useState(null);
+  const [insightLoading, setInsightLoading] = useState(true);
   const [loading, setLoading] = useState(true);
+
+  const loadInsight = useCallback(async () => {
+    setInsightLoading(true);
+    try {
+      const nextInsight = await withRetry(() => dashboardService.getInsight());
+      setInsight(nextInsight);
+    } catch {
+      setInsight(null);
+    } finally {
+      setInsightLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -81,10 +95,11 @@ export function useDashboard(period = "7d") {
     };
 
     load();
+    loadInsight();
     return () => {
       active = false;
     };
-  }, [period]);
+  }, [loadInsight, period]);
 
-  return { summary, streak, progress, loading };
+  return { summary, streak, progress, insight, insightLoading, loading, refreshInsight: loadInsight };
 }

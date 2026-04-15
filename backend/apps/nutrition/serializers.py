@@ -60,6 +60,35 @@ class FoodLogSerializer(serializers.ModelSerializer):
         read_only_fields = ("id",)
 
 
+class ParseMealSerializer(serializers.Serializer):
+    description = serializers.CharField(max_length=2000, trim_whitespace=True)
+
+    def validate_description(self, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise serializers.ValidationError("Describe what you ate before parsing the meal.")
+        return cleaned
+
+
+class ParsedMealItemSerializer(serializers.Serializer):
+    food_name = serializers.CharField()
+    estimated_quantity_g = serializers.FloatField()
+    calories = serializers.FloatField()
+    protein_g = serializers.FloatField()
+    carbs_g = serializers.FloatField()
+    fat_g = serializers.FloatField()
+    confidence = serializers.ChoiceField(choices=("high", "medium", "low"))
+    open_food_facts_query = serializers.CharField()
+
+
+class ParsedMealResponseSerializer(serializers.Serializer):
+    items = ParsedMealItemSerializer(many=True)
+    total_calories = serializers.FloatField()
+    total_protein_g = serializers.FloatField()
+    total_carbs_g = serializers.FloatField()
+    total_fat_g = serializers.FloatField()
+
+
 class DailyGoalSerializer(serializers.ModelSerializer):
     class Meta:
         model = DailyGoal
