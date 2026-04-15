@@ -3,14 +3,16 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from apps.activities.views import ActivityLogViewSet, ActivityTypeViewSet
+from apps.assistant.views import AssistantViewSet
 from apps.dashboard.views import DashboardViewSet
-from apps.nutrition.views import FoodLogViewSet, FoodSearchViewSet, MealRecommendationViewSet
+from apps.nutrition.views import FoodLogViewSet, FoodSearchViewSet, MealRecommendationViewSet, NutritionAIViewSet
 from apps.users.views import AuthViewSet
 
 router = DefaultRouter()
 router.register("auth", AuthViewSet, basename="auth")
 router.register("activities/types", ActivityTypeViewSet, basename="activity-types")
 router.register("activities/logs", ActivityLogViewSet, basename="activity-logs")
+router.register("assistant", AssistantViewSet, basename="assistant")
 router.register(
     "nutrition/recommendations",
     MealRecommendationViewSet,
@@ -22,5 +24,10 @@ router.register("dashboard", DashboardViewSet, basename="dashboard")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path(
+        "api/v1/nutrition/parse-meal/",
+        NutritionAIViewSet.as_view({"post": "parse_meal"}),
+        name="nutrition-parse-meal",
+    ),
     path("api/v1/", include(router.urls)),
 ]

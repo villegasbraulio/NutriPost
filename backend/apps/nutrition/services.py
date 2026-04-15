@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
@@ -8,6 +9,7 @@ from django.utils import timezone
 
 from apps.activities.models import ActivityLog
 from apps.activities.services import TIMING_WINDOW_MINUTES
+from apps.core.ai_client import GroqServiceError, get_model
 from apps.users.services import sync_daily_goal
 
 from .models import DailyGoal, FoodLog, MealRecommendation
@@ -347,3 +349,103 @@ def get_nutrition_totals_for_date(user, target_date: date) -> dict[str, Decimal]
         aggregates["fat_g"] += Decimal(food_log.fat_g)
 
     return {key: quantize(value) for key, value in aggregates.items()}
+
+
+def strip_json_code_fences(raw_text: str) -> str:
+    """Normalize AI output by removing optional markdown fences around JSON."""
+
+    cleaned = raw_text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3].strip()
+    start_index = cleaned.find("[")
+    end_index = cleaned.rfind("]")
+    if start_index != -1 and end_index != -1:
+        cleaned = cleaned[start_index : end_index + 1]
+    return cleaned
+
+
+def normalize_parsed_meal_item(item: dict) -> dict:
+    """Coerce meal-parsing fields into a stable JSON shape for the frontend."""
+
+    quantity = max(float(item.get("estimated_quantity_g", 0) or 0), 0.0)
+    calories = max(float(item.get("calories", 0) or 0), 0.0)
+    protein = max(float(item.get("protein_g", 0) or 0), 0.0)
+    carbs = max(float(item.get("carbs_g", 0) or 0), 0.0)
+    fat = max(float(item.get("fat_g", 0) or 0), 0.0)
+    confidence = str(item.get("confidence", "medium")).lower()
+    if confidence not in {"high", "medium", "low"}:
+        confidence = "medium"
+
+    food_name = str(item.get("food_name") or "Unknown food").strip() or "Unknown food"
+    query = str(item.get("open_food_facts_query") or food_name).strip() or food_name
+
+    return {
+        "food_name": food_name,
+        "estimated_quantity_g": round(quantity, 1),
+        "calories": round(calories, 1),
+        "protein_g": round(protein, 1),
+        "carbs_g": round(carbs, 1),
+        "fat_g": round(fat, 1),
+        "confidence": confidence,
+        "open_food_facts_query": query,
+    }
+
+
+def parse_meal_from_text(description: str) -> dict:
+    """
+    Extract foods and estimated macros from a free-text meal description using Groq.
+    """
+
+    prompt = f"""
+Extract the individual food items from this meal description and estimate
+their macros. Use realistic portion sizes for a typical adult meal.
+
+Meal: "{description}"
+
+Return ONLY a valid JSON array with no explanation and no markdown fences:
+[
+  {{
+    "food_name": "Oatmeal",
+    "estimated_quantity_g": 80,
+    "calories": 300,
+    "protein_g": 10,
+    "carbs_g": 54,
+    "fat_g": 5,
+    "confidence": "high",
+    "open_food_facts_query": "oatmeal rolled oats"
+  }}
+]
+
+confidence values:
+- "high": standard food, well-known macros
+- "medium": common food but portion is estimated
+- "low": ambiguous or unusual dish
+
+Always return an array, even for a single item.
+Return ONLY the JSON array. No text before or after it.
+""".strip()
+
+    model = get_model(temperature=0.1)
+    response = model.generate_content(prompt)
+    raw_text = getattr(response, "text", "").strip()
+    if not raw_text:
+        raise GroqServiceError("Groq returned an empty meal parsing response.")
+
+    try:
+        parsed_items = json.loads(strip_json_code_fences(raw_text))
+    except json.JSONDecodeError as exc:
+        raise ValueError("Groq returned an invalid meal JSON payload.") from exc
+
+    if not isinstance(parsed_items, list):
+        raise ValueError("Groq meal parsing response must be a JSON array.")
+
+    normalized_items = [normalize_parsed_meal_item(item) for item in parsed_items if isinstance(item, dict)]
+    totals = {
+        "total_calories": round(sum(item["calories"] for item in normalized_items), 1),
+        "total_protein_g": round(sum(item["protein_g"] for item in normalized_items), 1),
+        "total_carbs_g": round(sum(item["carbs_g"] for item in normalized_items), 1),
+        "total_fat_g": round(sum(item["fat_g"] for item in normalized_items), 1),
+    }
+    return {"items": normalized_items, **totals}

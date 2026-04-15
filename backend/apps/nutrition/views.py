@@ -3,13 +3,24 @@ from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
 
 from apps.activities.models import ActivityLog
 
 from .filters import FoodLogFilter
 from .models import FoodLog
-from .serializers import FoodLogSerializer, MealRecommendationSerializer
-from .services import ensure_daily_goal, get_or_create_meal_recommendation, search_open_food_facts
+from .serializers import (
+    FoodLogSerializer,
+    MealRecommendationSerializer,
+    ParseMealSerializer,
+    ParsedMealResponseSerializer,
+)
+from .services import (
+    ensure_daily_goal,
+    get_or_create_meal_recommendation,
+    parse_meal_from_text,
+    search_open_food_facts,
+)
 
 
 class MealRecommendationViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -52,3 +63,19 @@ class FoodLogViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.Ge
     def perform_create(self, serializer):
         food_log = serializer.save(user=self.request.user)
         ensure_daily_goal(self.request.user, food_log.logged_at.date())
+
+
+class NutritionAIViewSet(viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=["post"], url_path="parse-meal")
+    def parse_meal(self, request):
+        serializer = ParseMealSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            payload = parse_meal_from_text(serializer.validated_data["description"])
+        except ValueError as exc:
+            raise ValidationError({"detail": str(exc)}) from exc
+
+        return Response(ParsedMealResponseSerializer(payload).data)

@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .services import build_progress, build_streak, build_summary
+from .services import build_progress, build_streak, build_summary, get_weekly_insight
 
 
 class DashboardViewSet(viewsets.GenericViewSet):
@@ -21,3 +21,7 @@ class DashboardViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=["get"])
     def progress(self, request):
         return Response(build_progress(request.user))
+
+    @action(detail=False, methods=["get"])
+    def insights(self, request):
+        return Response(get_weekly_insight(request.user, language_hint=request.headers.get("Accept-Language")))
