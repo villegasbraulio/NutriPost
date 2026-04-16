@@ -41,12 +41,14 @@ export function DashboardPage() {
     );
   }
 
-  const today = progress.at(-1) || {};
+  const today = summary.today || progress.at(-1) || {};
   const macroData = [
     { name: "Protein", value: today.protein_g || 0, color: "#10B981" },
     { name: "Carbs", value: today.carbs_g || 0, color: "#6366F1" },
     { name: "Fat", value: today.fat_g || 0, color: "#F59E0B" },
   ];
+  const hasWeeklyBurn = progress.some((item) => Number(item.calories_burned || 0) > 0);
+  const hasMacroData = macroData.some((item) => Number(item.value || 0) > 0);
 
   return (
     <div className="space-y-6">
@@ -74,7 +76,7 @@ export function DashboardPage() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Calories burned today" value={today.calories_burned || 0} icon={Flame} accent="primary" />
         <StatCard label="Calories consumed today" value={today.calories_consumed || 0} icon={Salad} accent="secondary" />
-        <StatCard label="Net balance" value={(today.calories_burned || 0) - (today.calories_consumed || 0)} icon={TrendingUp} accent="accent" />
+        <StatCard label="Net balance today" value={today.net_balance || 0} icon={TrendingUp} accent="accent" />
         <StatCard label="Day streak" value={streak} icon={CalendarDays} accent="secondary" />
       </section>
 
@@ -90,37 +92,59 @@ export function DashboardPage() {
             </Link>
           </div>
           <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={progress}>
-                <XAxis dataKey="date" tickFormatter={(value) => formatDateLabel(value)} stroke="#94A3B8" />
-                <YAxis stroke="#94A3B8" />
-                <Tooltip
-                  contentStyle={{ background: "#1E293B", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16 }}
-                />
-                <Bar dataKey="calories_burned" fill="#10B981" radius={[10, 10, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {hasWeeklyBurn ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={progress}>
+                  <XAxis dataKey="date" tickFormatter={(value) => formatDateLabel(value)} stroke="#94A3B8" />
+                  <YAxis stroke="#94A3B8" />
+                  <Tooltip
+                    contentStyle={{ background: "#1E293B", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16 }}
+                  />
+                  <Bar dataKey="calories_burned" fill="#10B981" radius={[10, 10, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 bg-background/40 px-6 text-center">
+                <Flame className="h-10 w-10 text-primary" />
+                <p className="mt-4 font-semibold">No activity logged this week yet</p>
+                <p className="mt-2 text-sm text-textMuted">Log your first session and this chart will fill in automatically.</p>
+                <Link className="mt-4 rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-background" to="/activities/log">
+                  Log activity
+                </Link>
+              </div>
+            )}
           </div>
         </motion.div>
 
         <motion.div whileHover={{ scale: 1.01 }} className="glass-panel rounded-[32px] p-6">
           <div className="mb-6">
             <h2 className="text-xl font-semibold">Today’s macro split</h2>
-            <p className="text-sm text-textMuted">Protein, carbs, and fats consumed</p>
+            <p className="text-sm text-textMuted">Protein, carbs, and fats consumed today</p>
           </div>
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={macroData} dataKey="value" nameKey="name" innerRadius={70} outerRadius={96} paddingAngle={6}>
-                  {macroData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ background: "#1E293B", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16 }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            {hasMacroData ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={macroData} dataKey="value" nameKey="name" innerRadius={70} outerRadius={96} paddingAngle={6}>
+                    {macroData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ background: "#1E293B", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16 }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 bg-background/40 px-6 text-center">
+                <Salad className="h-10 w-10 text-secondary" />
+                <p className="mt-4 font-semibold">No food logged today yet</p>
+                <p className="mt-2 text-sm text-textMuted">Add a meal to see today’s protein, carbs, and fat split.</p>
+                <Link className="mt-4 rounded-2xl bg-secondary px-4 py-2 text-sm font-semibold text-white" to="/nutrition/log">
+                  Log food
+                </Link>
+              </div>
+            )}
           </div>
           <div className="grid gap-3">
             {macroData.map((item) => (
@@ -147,26 +171,33 @@ export function DashboardPage() {
           </Link>
         </div>
         <div className="grid gap-3">
-          {summary.recent_activities.map((item) => (
-            <Link
-              key={item.id}
-              to={`/activities/logs/${item.id}`}
-              className="rounded-3xl border border-white/10 bg-background/50 p-4 transition hover:border-primary/40"
-            >
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-semibold">{item.activity}</p>
-                  <p className="text-sm capitalize text-textMuted">
-                    {item.category} • {item.duration_minutes} minutes
-                  </p>
+          {summary.recent_activities.length ? (
+            summary.recent_activities.map((item) => (
+              <Link
+                key={item.id}
+                to={`/activities/logs/${item.id}`}
+                className="rounded-3xl border border-white/10 bg-background/50 p-4 transition hover:border-primary/40"
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-semibold">{item.activity}</p>
+                    <p className="text-sm capitalize text-textMuted">
+                      {item.category} • {item.duration_minutes} minutes
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-primary">{Math.round(item.calories_burned)} kcal</p>
+                    <p className="text-sm text-textMuted">{formatDateLabel(item.logged_at, { weekday: "short" })}</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-primary">{Math.round(item.calories_burned)} kcal</p>
-                  <p className="text-sm text-textMuted">{formatDateLabel(item.logged_at, { weekday: "short" })}</p>
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))
+          ) : (
+            <div className="rounded-3xl border border-dashed border-white/10 bg-background/40 p-6 text-center">
+              <p className="font-semibold">No recent activity yet</p>
+              <p className="mt-2 text-sm text-textMuted">Once you log a workout, it will appear here with calories and recovery details.</p>
+            </div>
+          )}
         </div>
       </section>
     </div>
