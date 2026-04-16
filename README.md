@@ -1,103 +1,180 @@
 # NutriPost
 
-![Project Banner Placeholder](https://placehold.co/1200x320/0F172A/F8FAFC?text=NutriPost)
+NutriPost es una aplicación full-stack orientada al seguimiento de actividad física, nutrición diaria y recuperación post-entrenamiento. El sistema permite registrar entrenamientos, estimar calorías quemadas con valores MET, calcular objetivos nutricionales personalizados y generar recomendaciones alimentarias a partir de datos reales de productos.
 
-NutriPost is a full-stack recovery nutrition tracker that turns workout effort into calorie burn insights and personalized post-workout meal recommendations.
+El proyecto fue desarrollado como una solución de portfolio profesional, con foco en arquitectura backend, consumo de APIs externas, autenticación segura, experiencia de usuario moderna y funcionalidades asistidas por IA.
 
-[![Django](https://img.shields.io/badge/Django-5.1-092E20?logo=django)](https://www.djangoproject.com/)
-[![React](https://img.shields.io/badge/React-18-20232A?logo=react)](https://react.dev/)
-[![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite)](https://www.sqlite.org/)
-[![DRF](https://img.shields.io/badge/DRF-REST-red)](https://www.django-rest-framework.org/)
-[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3-0EA5E9?logo=tailwindcss)](https://tailwindcss.com/)
+## Resumen técnico para CV
 
-Live demo: [Coming soon](https://example.com)
+Aplicación web full-stack construida con Django REST Framework y React que integra autenticación JWT mediante cookies httpOnly, cálculo de gasto energético con fórmulas nutricionales, análisis de rutinas de gimnasio con IA, búsqueda de alimentos en Open Food Facts y dashboards interactivos para seguimiento de progreso.
 
-## Features
+## Stack principal
 
-- 🏃 Track workouts with activity-specific MET values and automatic calorie burn calculation.
-- 🍽️ Generate post-workout recovery meals using Open Food Facts nutrition data.
-- 📊 Monitor calories burned vs consumed, macro balance, streaks, and weekly progress.
-- 🔐 Use JWT authentication with httpOnly cookies and a custom Django user model.
-- 📱 Explore a mobile-first React dashboard with charts, animations, and guided activity logging.
-- 🧪 Seed 30+ activity types plus a demo account with 30 days of sample data.
+| Capa | Tecnologías |
+| --- | --- |
+| Frontend | React 18, Vite, React Router, Tailwind CSS, Framer Motion, Recharts, Axios |
+| Backend | Python, Django 5, Django REST Framework, django-filter |
+| Autenticación | Simple JWT, cookies httpOnly, rotación y blacklist de refresh tokens |
+| Base de datos | SQLite en desarrollo |
+| IA y datos externos | Groq API, Open Food Facts API |
+| Testing | pytest, pytest-django |
 
-## Architecture
+## Funcionalidades principales
 
-```text
-┌────────────────────────────── Frontend (React + Vite) ──────────────────────────────┐
-│ Landing │ Auth │ Dashboard │ Activity Log │ History │ Nutrition │ Profile │ Charts   │
-│  TailwindCSS + Framer Motion + Recharts + React Hook Form + Axios interceptors      │
-└───────────────────────────────────────────┬──────────────────────────────────────────┘
-                                            │ HTTPS / JSON
-┌────────────────────────────── Backend (Django + DRF) ────────────────────────────────┐
-│ Auth ViewSet │ Activity ViewSets │ Nutrition ViewSets │ Dashboard ViewSet            │
-│ Service layer for TDEE, MET burn, macro targeting, OFF food ranking                  │
-│ Custom JWT cookie auth │ django-filter │ consistent JSON error responses             │
-└───────────────────────────────────────────┬──────────────────────────────────────────┘
-                                            │ ORM
-                                   ┌────────▼────────┐
-                                   │ SQLite Database │
-                                   │ Users           │
-                                   │ Activities      │
-                                   │ Food Logs       │
-                                   │ Daily Goals     │
-                                   └─────────────────┘
-```
+- Registro, login, logout y refresh de sesión con JWT almacenado en cookies httpOnly.
+- Perfil de usuario con peso, altura, edad, género, nivel de actividad y objetivo nutricional.
+- Cálculo de BMR y calorías diarias totales como BMR × multiplicador de actividad TDEE.
+- Registro de actividades físicas con cálculo automático de calorías netas mediante valores MET.
+- Catálogo inicial de más de 30 tipos de actividad física.
+- Gestión de rutinas de gimnasio con ejercicios estructurados, duración estimada, grupos musculares y MET ajustado.
+- Parsing de rutinas desde texto libre, imágenes JPG/PNG/WEBP, PDFs con texto, PDFs con imágenes embebidas y archivos TXT/CSV/Markdown.
+- Análisis de rutinas asistido por IA considerando volumen, carga, descansos, tipo de ejercicios y densidad de sesión.
+- Recomendaciones post-entrenamiento basadas en objetivo personal, tipo de actividad, timing de recuperación y macronutrientes.
+- Búsqueda de alimentos con datos normalizados desde Open Food Facts.
+- Registro de comidas y visualización de calorías, proteínas, carbohidratos y grasas consumidas.
+- Dashboard con resumen por período, progreso semanal, racha de actividad y métricas recientes.
+- Asistente conversacional NutriCoach con contexto del usuario, actividad del día y registros nutricionales.
+- Generación de insights semanales asistidos por IA cuando existe suficiente historial de actividad.
+- Cuenta demo y comandos de seed para mostrar datos realistas en un entorno local.
 
-## Project Structure
+## Arquitectura
 
 ```text
-nutripost/
-├── backend/
-│   ├── config/
-│   │   ├── settings/
-│   │   ├── urls.py
-│   │   └── wsgi.py
-│   ├── apps/
-│   │   ├── users/
-│   │   ├── activities/
-│   │   ├── nutrition/
-│   │   └── dashboard/
-│   ├── manage.py
-│   └── requirements.txt
+NutriPost
 ├── frontend/
-│   ├── src/
-│   ├── package.json
-│   └── tailwind.config.js
-├── .env.example
-├── .gitignore
-└── README.md
+│   └── React + Vite
+│       ├── páginas protegidas por sesión
+│       ├── dashboard, nutrición, actividades, rutinas y asistente
+│       └── servicios Axios para consumir la API REST
+│
+└── backend/
+    └── Django + DRF
+        ├── apps.users        autenticación, perfil y objetivos diarios
+        ├── apps.activities   actividades, rutinas, MET y parsing asistido por IA
+        ├── apps.nutrition    alimentos, comidas, recomendaciones y macros
+        ├── apps.dashboard    métricas, progreso, rachas e insights
+        └── apps.assistant    conversación contextual con NutriCoach
 ```
 
-## Local Setup
+### Flujo general
 
-### 1. Clone and configure environment
+```text
+Usuario
+  │
+  ▼
+Frontend React
+  │  credenciales por cookies httpOnly
+  ▼
+API REST Django
+  │
+  ├── ORM / SQLite
+  ├── Open Food Facts API
+  └── Groq API
+```
+
+## Módulos destacados
+
+### Actividad física y rutinas
+
+El backend calcula calorías netas con la fórmula:
+
+```text
+kcal netas = (MET - 1) * peso_kg * duración_horas
+```
+
+Para actividades generales se usa el MET del tipo de actividad. Para rutinas de gimnasio, el sistema puede utilizar un MET ajustado generado a partir de la rutina real del usuario.
+
+El módulo de rutinas permite:
+
+- crear, editar, listar y eliminar rutinas;
+- guardar ejercicios como JSON estructurado;
+- analizar grupos musculares e intensidad;
+- estimar carga de volumen;
+- vincular una rutina a un registro de actividad;
+- conservar historial aunque una rutina sea eliminada.
+
+### Nutrición y recomendaciones
+
+NutriPost calcula objetivos post-entrenamiento en función de:
+
+- peso del usuario;
+- objetivo personal: perder, mantener o ganar peso;
+- categoría de actividad: cardio, fuerza, flexibilidad o deporte;
+- ventana de recuperación configurada.
+
+Luego busca alimentos candidatos en Open Food Facts, normaliza calorías y macronutrientes por 100 g, y rankea opciones según cercanía al objetivo nutricional.
+
+### IA aplicada
+
+El proyecto integra Groq para funcionalidades concretas dentro del producto:
+
+- parsing de comidas desde lenguaje natural;
+- parsing de rutinas desde texto o archivos;
+- análisis de MET ajustado para rutinas de fuerza;
+- asistente conversacional con contexto nutricional del día;
+- insights semanales personalizados.
+
+La integración está encapsulada en servicios del backend, manteniendo la lógica de IA fuera de las vistas y separada de la capa de presentación.
+
+## API principal
+
+Todos los endpoints funcionales se exponen bajo `/api/v1/`.
+
+| Recurso | Endpoint | Descripción |
+| --- | --- | --- |
+| Autenticación | `/auth/register/` | Registro de usuario y creación de sesión |
+| Autenticación | `/auth/login/` | Inicio de sesión |
+| Autenticación | `/auth/logout/` | Cierre de sesión y limpieza de cookies |
+| Autenticación | `/auth/refresh/` | Rotación de refresh token |
+| Perfil | `/auth/me/` | Consulta y actualización del perfil |
+| Actividades | `/activities/types/` | Listado de actividades disponibles |
+| Actividades | `/activities/logs/` | CRUD de registros de actividad |
+| Rutinas | `/routines/` | CRUD de rutinas de gimnasio |
+| Rutinas | `/routines/{id}/analyze/` | Análisis de rutina con IA |
+| Rutinas | `/routines/parse-text/` | Parsing de rutina desde texto |
+| Rutinas | `/routines/parse-file/` | Parsing de rutina desde archivo |
+| Nutrición | `/nutrition/recommendations/{activity_log_id}/` | Recomendación post-entrenamiento |
+| Nutrición | `/nutrition/foods/search/` | Búsqueda de alimentos |
+| Nutrición | `/nutrition/food-logs/` | Registro y listado de comidas |
+| Nutrición | `/nutrition/parse-meal/` | Parsing de comida con IA |
+| Dashboard | `/dashboard/summary/` | Resumen de calorías, macros y actividad |
+| Dashboard | `/dashboard/progress/` | Progreso semanal |
+| Dashboard | `/dashboard/streak/` | Racha de actividad |
+| Dashboard | `/dashboard/insights/` | Insight semanal con IA |
+| Asistente | `/assistant/chat/` | Chat contextual con NutriCoach |
+
+## Instalación local
+
+### 1. Clonar el repositorio
 
 ```bash
-git clone <your-repo-url>
+git clone <url-del-repositorio>
 cd NutriPost
 cp .env.example .env
 ```
 
-### 2. Backend setup
+### 2. Configurar backend
 
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python manage.py makemigrations
 python manage.py migrate
 python manage.py seed_activities
 python manage.py seed_demo_user
 python manage.py runserver
 ```
 
-Backend runs at `http://127.0.0.1:8000`.
+El backend queda disponible en:
 
-### 3. Frontend setup
+```text
+http://127.0.0.1:8000
+```
 
-Open a second terminal:
+### 3. Configurar frontend
+
+En una segunda terminal:
 
 ```bash
 cd frontend
@@ -105,55 +182,98 @@ npm install
 npm run dev
 ```
 
-Frontend runs at `http://127.0.0.1:5173`.
-
-### 4. Demo login
+El frontend queda disponible en:
 
 ```text
-Username: demo
-Password: DemoPass123!
+http://127.0.0.1:5173
 ```
 
-## API Overview
+## Variables de entorno
 
-| Endpoint | Method | Auth | Description |
-| --- | --- | --- | --- |
-| `/api/v1/auth/register/` | POST | No | Register a new user and issue JWT cookies |
-| `/api/v1/auth/login/` | POST | No | Login and set access/refresh cookies |
-| `/api/v1/auth/logout/` | POST | Yes | Logout and clear cookies |
-| `/api/v1/auth/refresh/` | POST | No | Rotate refresh cookie and renew session |
-| `/api/v1/auth/me/` | GET | Yes | Get current user profile and daily goal preview |
-| `/api/v1/auth/me/` | PUT | Yes | Update profile and recalculate goals |
-| `/api/v1/activities/types/` | GET | Yes | List activity types with MET values |
-| `/api/v1/activities/logs/` | GET | Yes | List activity logs with filters and pagination |
-| `/api/v1/activities/logs/` | POST | Yes | Create a new activity log |
-| `/api/v1/activities/logs/{id}/` | GET | Yes | Activity detail including recommendation |
-| `/api/v1/activities/logs/{id}/` | DELETE | Yes | Delete an activity log |
-| `/api/v1/nutrition/recommendations/{activity_log_id}/` | GET | Yes | Get or generate a meal recommendation |
-| `/api/v1/nutrition/foods/search/` | GET | Yes | Search Open Food Facts by keyword |
-| `/api/v1/nutrition/food-logs/` | POST | Yes | Create a food log entry |
-| `/api/v1/nutrition/food-logs/` | GET | Yes | List food logs with date filters |
-| `/api/v1/dashboard/summary/` | GET | Yes | Summary metrics for a period |
-| `/api/v1/dashboard/streak/` | GET | Yes | Get consecutive activity streak |
-| `/api/v1/dashboard/progress/` | GET | Yes | Weekly progress toward daily goals |
+El archivo `.env.example` incluye las variables necesarias para ejecutar el proyecto localmente.
 
-## Data Sources
+| Variable | Uso |
+| --- | --- |
+| `SECRET_KEY` | Clave secreta de Django |
+| `DEBUG` | Modo de desarrollo |
+| `TIME_ZONE` | Zona horaria del proyecto |
+| `ALLOWED_HOSTS` | Hosts permitidos por Django |
+| `CORS_ALLOWED_ORIGINS` | Orígenes permitidos para el frontend |
+| `CSRF_TRUSTED_ORIGINS` | Orígenes confiables para CSRF |
+| `JWT_ACCESS_COOKIE` | Nombre de la cookie del access token |
+| `JWT_REFRESH_COOKIE` | Nombre de la cookie del refresh token |
+| `JWT_COOKIE_SECURE` | Configuración secure para cookies |
+| `JWT_COOKIE_SAMESITE` | Política SameSite de cookies |
+| `OFF_API_BASE_URL` | URL base de Open Food Facts |
+| `GROQ_API_BASE_URL` | URL base de Groq |
+| `GROQ_MODEL_NAME` | Modelo de texto para IA |
+| `GROQ_VISION_MODEL_NAME` | Modelo de visión para archivos de rutina |
+| `GROQ_API_KEY` | API key de Groq |
+| `VITE_API_BASE_URL` | URL base consumida por el frontend |
 
-- Open Food Facts public API: [world.openfoodfacts.org](https://world.openfoodfacts.org/)
-- MET values reference: Compendium of Physical Activities by Ainsworth et al. (2011 update)
+## Cuenta demo
 
-## Screenshots
+Después de ejecutar los comandos de seed:
 
-- Dashboard screenshot placeholder
-- Activity log flow placeholder
-- Recommendation detail placeholder
-- Nutrition today placeholder
+```text
+Usuario: demo
+Contraseña: DemoPass123!
+```
 
-## Future Improvements
+La cuenta demo incluye historial de actividad, registros de comidas y datos suficientes para visualizar el dashboard.
 
-- Dockerized local and deployment workflow
-- PostgreSQL for production environments
-- Fitbit / Garmin / Apple Health integrations
-- Push notifications for meal timing and streak nudges
-- Barcode scanner for faster food logging
+## Scripts útiles
 
+### Backend
+
+```bash
+python manage.py migrate
+python manage.py seed_activities
+python manage.py seed_demo_user
+python manage.py runserver
+pytest
+```
+
+### Frontend
+
+```bash
+npm run dev
+npm run build
+npm run lint
+```
+
+## Testing
+
+El proyecto incluye configuración de `pytest` y `pytest-django`, con tests orientados a servicios de dominio, especialmente cálculos y lógica de actividades.
+
+Para ejecutar la suite:
+
+```bash
+cd backend
+pytest
+```
+
+## Decisiones técnicas relevantes
+
+- Separación por apps de dominio en Django para mantener responsabilidades claras.
+- Capa de servicios para cálculos nutricionales, integración con APIs externas y lógica asistida por IA.
+- Autenticación basada en cookies httpOnly para evitar exposición directa de tokens en el frontend.
+- Rotación y blacklist de refresh tokens para mejorar el control de sesión.
+- Normalización de respuestas externas antes de persistir o exponer datos al frontend.
+- Uso de `django-filter`, ordering y search en recursos listables.
+- Manejo centralizado de errores de API mediante un exception handler personalizado.
+- Frontend organizado en páginas, hooks, servicios y componentes reutilizables.
+
+## Alcance actual
+
+NutriPost está preparado para ejecución local como proyecto full-stack de portfolio. El foco actual está en mostrar una experiencia funcional end-to-end: autenticación, carga de datos, procesamiento de actividad, nutrición, visualización de métricas e integración con IA.
+
+## Próximas mejoras posibles
+
+- Dockerización del entorno completo.
+- Migración a PostgreSQL para despliegue productivo.
+- Pipeline de CI para linting, testing y build.
+- Más cobertura de tests para endpoints y componentes frontend.
+- Exportación de reportes semanales.
+- Integraciones con dispositivos o plataformas de fitness.
+- Escáner de código de barras para alimentos.

@@ -72,6 +72,9 @@ export function ActivityHistoryPage() {
                       <p className="text-sm text-textMuted">
                         {item.duration_minutes} minutes • {formatDateTime(item.logged_at)}
                       </p>
+                      {item.gym_routine ? (
+                        <p className="mt-1 text-sm text-secondary">Routine: {item.gym_routine.name}</p>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">

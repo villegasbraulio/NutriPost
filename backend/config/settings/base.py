@@ -16,6 +16,7 @@ env = environ.Env(
     GROQ_API_KEY=(str, ""),
     GROQ_API_BASE_URL=(str, "https://api.groq.com/openai/v1"),
     GROQ_MODEL_NAME=(str, "llama-3.3-70b-versatile"),
+    GROQ_VISION_MODEL_NAME=(str, "meta-llama/llama-4-scout-17b-16e-instruct"),
 )
 environ.Env.read_env(ROOT_DIR / ".env")
 
@@ -136,3 +137,4 @@ OPEN_FOOD_FACTS_BASE_URL = env("OFF_API_BASE_URL")
 GROQ_API_KEY = env("GROQ_API_KEY", default="")
 GROQ_API_BASE_URL = env("GROQ_API_BASE_URL", default="https://api.groq.com/openai/v1")
 GROQ_MODEL_NAME = env("GROQ_MODEL_NAME", default="llama-3.3-70b-versatile")
+GROQ_VISION_MODEL_NAME = env("GROQ_VISION_MODEL_NAME", default="meta-llama/llama-4-scout-17b-16e-instruct")

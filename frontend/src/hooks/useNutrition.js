@@ -12,7 +12,7 @@ export function useNutrition(date) {
     const load = async () => {
       setLoading(true);
       try {
-        const payload = await nutritionService.getFoodLogs(date ? { date } : {});
+        const payload = await nutritionService.getFoodLogs(date ? { date, page_size: 100 } : { page_size: 100 });
         if (active) {
           setFoodLogs(payload.results || []);
         }

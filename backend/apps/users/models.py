@@ -18,9 +18,10 @@ class User(AbstractUser):
         VERY_ACTIVE = "very_active", "Very Active"
 
     class Goal(models.TextChoices):
-        LOSE = "lose", "Lose"
-        MAINTAIN = "maintain", "Maintain"
-        GAIN = "gain", "Gain"
+        LOSE = "lose", "Lose Weight"
+        REDUCE_FAT = "reduce_fat", "Reduce Fat"
+        MAINTAIN = "maintain", "Maintenance"
+        GAIN = "gain", "Gain Muscle"
 
     weight_kg = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("70.00"))
     height_cm = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("170.00"))

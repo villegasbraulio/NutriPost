@@ -8,6 +8,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     bmr = serializers.SerializerMethodField()
     tdee = serializers.SerializerMethodField()
     daily_goal_calories = serializers.SerializerMethodField()
+    calorias_objetivo = serializers.SerializerMethodField()
     daily_goal_preview = serializers.SerializerMethodField()
 
     class Meta:
@@ -27,6 +28,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "bmr",
             "tdee",
             "daily_goal_calories",
+            "calorias_objetivo",
             "daily_goal_preview",
             "created_at",
             "updated_at",
@@ -36,6 +38,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "bmr",
             "tdee",
             "daily_goal_calories",
+            "calorias_objetivo",
             "created_at",
             "updated_at",
             "daily_goal_preview",
@@ -60,6 +63,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def get_daily_goal_calories(self, obj: User):
         return self._get_targets(obj)["daily_goal_calories"]
+
+    def get_calorias_objetivo(self, obj: User):
+        return self._get_targets(obj)["calorias_objetivo"]
 
 
 class RegisterSerializer(serializers.ModelSerializer):

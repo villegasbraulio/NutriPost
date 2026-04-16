@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Bot, Dumbbell, Home, Salad, UserCircle2 } from "lucide-react";
+import { Bot, ClipboardList, Dumbbell, Home, Salad, UserCircle2 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { useAuth } from "../hooks/useAuth";
@@ -8,6 +8,7 @@ const navigation = [
   { to: "/dashboard", label: "Dashboard", icon: Home },
   { to: "/assistant", label: "NutriCoach", icon: Bot },
   { to: "/activities/logs", label: "Activities", icon: Dumbbell },
+  { to: "/routines", label: "Routines", icon: ClipboardList },
   { to: "/nutrition/today", label: "Nutrition", icon: Salad },
   { to: "/profile", label: "Profile", icon: UserCircle2 },
 ];

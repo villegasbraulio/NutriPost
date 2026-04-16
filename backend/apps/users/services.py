@@ -10,6 +10,13 @@ from apps.activities.services import calculate_bmr, calculate_tdee
 
 from .models import User
 
+GOAL_CALORIE_ADJUSTMENTS = {
+    "lose": Decimal("-500"),
+    "reduce_fat": Decimal("-300"),
+    "maintain": Decimal("0"),
+    "gain": Decimal("300"),
+}
+
 
 def quantize(value: Decimal) -> Decimal:
     return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
@@ -17,20 +24,20 @@ def quantize(value: Decimal) -> Decimal:
 
 def calculate_daily_goal(tdee, goal) -> Decimal:
     """
-    Apply a moderate calorie adjustment to TDEE based on the selected body-composition goal.
+    Apply a goal-specific deficit/surplus to the user's TDEE.
 
     Formula:
-    - lose = TDEE - 500 kcal
+    - BMR = Mifflin-St Jeor
+    - TDEE = BMR × activity_level_multiplier
+    - calorias_objetivo = TDEE + goal_adjustment
+    - lose = TDEE - 500 kcal/day
+    - reduce_fat = TDEE - 300 kcal/day
     - maintain = TDEE
-    - gain = TDEE + 300 kcal
+    - gain = TDEE + 300 kcal/day
     """
 
-    adjustments = {
-        User.Goal.LOSE: Decimal("-500"),
-        User.Goal.MAINTAIN: Decimal("0"),
-        User.Goal.GAIN: Decimal("300"),
-    }
-    return (Decimal(str(tdee)) + adjustments[goal]).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+    adjusted_calories = Decimal(str(tdee)) + GOAL_CALORIE_ADJUSTMENTS.get(goal, Decimal("0"))
+    return adjusted_calories.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
 
 
 def calculate_daily_macro_targets(user: User, daily_goal_calories: Decimal) -> dict[str, float]:
@@ -64,7 +71,7 @@ def calculate_daily_goal_targets(user: User) -> dict[str, float]:
     Formulae:
     - BMR = Mifflin-St Jeor
     - TDEE = BMR × activity multiplier
-    - daily_goal_calories = TDEE adjusted by goal
+    - calorias_objetivo = TDEE + goal-specific adjustment
     - daily macros = weight-based protein/fat anchors with carbohydrate fill
     """
 
@@ -72,9 +79,12 @@ def calculate_daily_goal_targets(user: User) -> dict[str, float]:
     tdee = calculate_tdee(bmr, user.activity_level)
     daily_goal_calories = calculate_daily_goal(tdee, user.goal)
     macro_targets = calculate_daily_macro_targets(user, daily_goal_calories)
+    goal_adjustment = GOAL_CALORIE_ADJUSTMENTS.get(user.goal, Decimal("0"))
     return {
         "daily_goal_calories": float(daily_goal_calories),
         "calories_goal": float(daily_goal_calories),
+        "calorias_objetivo": float(daily_goal_calories),
+        "goal_adjustment_calories": float(goal_adjustment),
         "protein_goal_g": macro_targets["protein_goal_g"],
         "carbs_goal_g": macro_targets["carbs_goal_g"],
         "fat_goal_g": macro_targets["fat_goal_g"],

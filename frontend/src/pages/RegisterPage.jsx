@@ -20,7 +20,7 @@ const registerSchema = z.object({
   age: z.coerce.number().min(13),
   gender: z.enum(["male", "female", "other"]),
   activity_level: z.enum(["sedentary", "light", "moderate", "active", "very_active"]),
-  goal: z.enum(["lose", "maintain", "gain"]),
+  goal: z.enum(["lose", "reduce_fat", "maintain", "gain"]),
 });
 
 export function RegisterPage() {
@@ -118,9 +118,10 @@ export function RegisterPage() {
           <div className="sm:col-span-2">
             <label className="mb-2 block text-sm text-textMuted">Goal</label>
             <select {...register("goal")} className="focus-ring w-full rounded-2xl border border-white/10 bg-background/60 px-4 py-3">
-              <option value="lose">Lose</option>
-              <option value="maintain">Maintain</option>
-              <option value="gain">Gain</option>
+              <option value="lose">Perder peso</option>
+              <option value="reduce_fat">Disminuir grasa</option>
+              <option value="maintain">Mantenimiento</option>
+              <option value="gain">Ganar masa muscular</option>
             </select>
           </div>
 

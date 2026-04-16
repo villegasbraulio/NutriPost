@@ -13,6 +13,9 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { NutritionLogPage } from "./pages/NutritionLogPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RegisterPage } from "./pages/RegisterPage";
+import { RoutineDetailPage } from "./pages/RoutineDetailPage";
+import { RoutineFormPage } from "./pages/RoutineFormPage";
+import { RoutineListPage } from "./pages/RoutineListPage";
 import { TodayNutritionPage } from "./pages/TodayNutritionPage";
 
 export default function App() {
@@ -35,6 +38,10 @@ export default function App() {
         <Route path="/activities/logs/:id" element={<ActivityDetailPage />} />
         <Route path="/nutrition/log" element={<NutritionLogPage />} />
         <Route path="/nutrition/today" element={<TodayNutritionPage />} />
+        <Route path="/routines" element={<RoutineListPage />} />
+        <Route path="/routines/new" element={<RoutineFormPage />} />
+        <Route path="/routines/:id/edit" element={<RoutineFormPage />} />
+        <Route path="/routines/:id" element={<RoutineDetailPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
