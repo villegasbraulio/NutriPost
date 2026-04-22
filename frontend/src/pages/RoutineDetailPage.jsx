@@ -39,7 +39,7 @@ function MuscleMap({ muscleGroups = [] }) {
   ];
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-background/60 p-5">
+    <div className="min-w-0 rounded-3xl border border-white/10 bg-background/60 p-5">
       <p className="text-sm uppercase tracking-[0.2em] text-textMuted">Muscle map</p>
       <svg viewBox="0 0 200 330" className="mx-auto mt-4 h-[330px] max-w-full">
         <circle cx="100" cy="34" r="22" fill="#1E293B" stroke="#475569" strokeWidth="2" />
@@ -123,13 +123,13 @@ export function RoutineDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="glass-panel rounded-[32px] p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div>
+    <div className="min-w-0 space-y-6 overflow-hidden">
+      <section className="glass-panel min-w-0 overflow-hidden rounded-[32px] p-6">
+        <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
             <p className="text-sm uppercase tracking-[0.24em] text-primary">Routine detail</p>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight">{routine.name}</h1>
-            <p className="mt-3 max-w-2xl text-textMuted">
+            <h1 className="mt-3 break-words text-4xl font-bold tracking-tight">{routine.name}</h1>
+            <p className="mt-3 max-w-2xl break-words text-textMuted">
               {routine.description || "A saved strength routine ready for precise calorie estimates."}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -141,7 +141,7 @@ export function RoutineDetailPage() {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[440px]">
+          <div className="grid w-full gap-3 sm:grid-cols-3 lg:max-w-[440px] lg:shrink-0">
             <div className="rounded-3xl bg-primary/10 p-4">
               <p className="text-sm text-primary">Adjusted MET</p>
               <p className="mt-2 text-3xl font-bold">{routine.adjusted_met ? Number(routine.adjusted_met).toFixed(1) : "Pending"}</p>
@@ -157,17 +157,17 @@ export function RoutineDetailPage() {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-3">
+        <div className="mt-6 flex min-w-0 flex-wrap gap-3">
           <button
             onClick={() => navigate("/activities/log", { state: { routineId: routine.id } })}
-            className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 font-semibold text-background"
+            className="inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 font-semibold text-background"
           >
             Use this routine
             <ArrowRight className="h-4 w-4" />
           </button>
           <Link
             to={`/routines/${routine.id}/edit`}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-5 py-3 font-semibold text-textMuted hover:text-textPrimary"
+            className="inline-flex max-w-full items-center justify-center gap-2 rounded-2xl border border-white/10 px-5 py-3 font-semibold text-textMuted hover:text-textPrimary"
           >
             <Pencil className="h-4 w-4" />
             Edit
@@ -175,7 +175,7 @@ export function RoutineDetailPage() {
           <button
             onClick={handleAnalyze}
             disabled={analyzing}
-            className="inline-flex items-center gap-2 rounded-2xl border border-secondary/30 px-5 py-3 font-semibold text-secondary hover:bg-secondary/10 disabled:opacity-60"
+            className="inline-flex max-w-full items-center justify-center gap-2 rounded-2xl border border-secondary/30 px-5 py-3 font-semibold text-secondary hover:bg-secondary/10 disabled:opacity-60"
           >
             <Sparkles className="h-4 w-4" />
             {analyzing ? "Analyzing..." : "Analyze with Groq"}
@@ -183,13 +183,13 @@ export function RoutineDetailPage() {
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1fr_340px]">
-        <div className="glass-panel rounded-[32px] p-6">
+      <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="glass-panel min-w-0 overflow-hidden rounded-[32px] p-6">
           <div className="mb-5 flex items-center gap-3">
             <Dumbbell className="h-5 w-5 text-primary" />
             <h2 className="text-2xl font-semibold">Exercise list</h2>
           </div>
-          <div className="overflow-x-auto">
+          <div className="max-w-full overflow-x-auto rounded-2xl">
             <table className="w-full min-w-[920px] text-left text-sm">
               <thead className="text-xs uppercase tracking-[0.16em] text-textMuted">
                 <tr>
@@ -209,22 +209,24 @@ export function RoutineDetailPage() {
                   const breakdown = routine.calorie_breakdown?.[index] || {};
                   return (
                     <tr key={`${exercise.name}-${index}`} className="border-t border-white/10">
-                      <td className="py-4 font-semibold">{exercise.name}</td>
+                      <td className="max-w-[220px] break-words py-4 pr-4 font-semibold">{exercise.name}</td>
                       <td className="py-4">{exercise.sets}</td>
                       <td className="py-4">{exercise.reps}</td>
-                      <td className="py-4">{breakdown.load_label || (exercise.weight_kg ? `${exercise.weight_kg} kg` : "No external load")}</td>
+                      <td className="whitespace-nowrap py-4 pr-4">
+                        {breakdown.load_label || (exercise.weight_kg ? `${exercise.weight_kg} kg` : "No external load")}
+                      </td>
                       <td className="py-4">{exercise.seconds_per_rep || 3}s</td>
                       <td className="py-4">{exercise.rest_seconds}s</td>
                       <td className="py-4">{breakdown.met_value ? Number(breakdown.met_value).toFixed(1) : "-"}</td>
                       <td className="py-4 font-semibold text-primary">{breakdown.calories ? Math.round(breakdown.calories) : "-"}</td>
-                      <td className="py-4 capitalize">{exercise.exercise_type.replace("_", " ")}</td>
+                      <td className="whitespace-nowrap py-4 pr-4 capitalize">{exercise.exercise_type.replace("_", " ")}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-          <p className="mt-4 text-sm text-textMuted">
+          <p className="mt-4 break-words text-sm text-textMuted">
             External load volume: {Math.round(volumeLoad)} kg. This is shown for context only; calories use execution time, rest time, exercise MET, and your body weight.
           </p>
         </div>
@@ -232,15 +234,15 @@ export function RoutineDetailPage() {
         <MuscleMap muscleGroups={routine.muscle_groups || []} />
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="glass-panel rounded-[32px] p-6">
+      <section className="grid min-w-0 gap-6 lg:grid-cols-2">
+        <div className="glass-panel min-w-0 rounded-[32px] p-6">
           <p className="text-sm uppercase tracking-[0.2em] text-secondary">AI analysis</p>
-          <p className="mt-4 text-textMuted">
+          <p className="mt-4 break-words text-textMuted">
             {routine.ai_analysis || "Analyze this routine to get the MET justification based on volume, rest and muscle groups."}
           </p>
         </div>
 
-        <div className="glass-panel rounded-[32px] p-6">
+        <div className="glass-panel min-w-0 rounded-[32px] p-6">
           <p className="text-sm uppercase tracking-[0.2em] text-primary">Usage history</p>
           <div className="mt-4 space-y-3">
             {(routine.recent_activity_logs || []).length === 0 ? (
@@ -252,9 +254,9 @@ export function RoutineDetailPage() {
                   to={`/activities/logs/${log.id}`}
                   className="block rounded-2xl border border-white/10 bg-background/50 p-4 transition hover:border-primary/30"
                 >
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="font-semibold">{log.activity_type}</p>
+                  <div className="flex min-w-0 items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="break-words font-semibold">{log.activity_type}</p>
                       <p className="text-sm text-textMuted">
                         {log.duration_minutes} min • {formatDateTime(log.logged_at)}
                       </p>

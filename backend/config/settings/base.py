@@ -1,3 +1,4 @@
+import os
 from datetime import timedelta
 from pathlib import Path
 
@@ -12,6 +13,7 @@ env = environ.Env(
     ALLOWED_HOSTS=(list, ["127.0.0.1", "localhost"]),
     CORS_ALLOWED_ORIGINS=(list, ["http://127.0.0.1:5173", "http://localhost:5173"]),
     CSRF_TRUSTED_ORIGINS=(list, ["http://127.0.0.1:5173", "http://localhost:5173"]),
+    FRONTEND_URL=(str, ""),
     OFF_API_BASE_URL=(str, "https://world.openfoodfacts.org"),
     GROQ_API_KEY=(str, ""),
     GROQ_API_BASE_URL=(str, "https://api.groq.com/openai/v1"),
@@ -22,7 +24,18 @@ environ.Env.read_env(ROOT_DIR / ".env")
 
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG")
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
+
+render_external_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
+default_allowed_hosts = ["127.0.0.1", "localhost"]
+if render_external_hostname:
+    default_allowed_hosts.append(render_external_hostname)
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[]) or default_allowed_hosts
+
+frontend_url = env("FRONTEND_URL", default="").strip().rstrip("/")
+default_frontend_origins = [frontend_url] if frontend_url else [
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -43,8 +56,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -73,10 +87,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BACKEND_DIR / "db.sqlite3",
-    }
+    "default": env.db("DATABASE_URL", default=f"sqlite:///{BACKEND_DIR / 'db.sqlite3'}")
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -93,6 +104,11 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BACKEND_DIR / "staticfiles"
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    }
+}
 MEDIA_URL = "media/"
 MEDIA_ROOT = BACKEND_DIR / "media"
 
@@ -123,15 +139,15 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_COOKIE_ACCESS": env("JWT_ACCESS_COOKIE", default="nutripost_access"),
     "AUTH_COOKIE_REFRESH": env("JWT_REFRESH_COOKIE", default="nutripost_refresh"),
-    "AUTH_COOKIE_SECURE": env.bool("JWT_COOKIE_SECURE", default=False),
+    "AUTH_COOKIE_SECURE": env.bool("JWT_COOKIE_SECURE", default=not DEBUG),
     "AUTH_COOKIE_HTTP_ONLY": True,
-    "AUTH_COOKIE_SAMESITE": env("JWT_COOKIE_SAMESITE", default="Lax"),
+    "AUTH_COOKIE_SAMESITE": env("JWT_COOKIE_SAMESITE", default="Lax" if DEBUG else "None"),
     "AUTH_COOKIE_PATH": "/",
 }
 
-CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS")
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[]) or default_frontend_origins
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS")
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[]) or default_frontend_origins
 
 OPEN_FOOD_FACTS_BASE_URL = env("OFF_API_BASE_URL")
 GROQ_API_KEY = env("GROQ_API_KEY", default="")

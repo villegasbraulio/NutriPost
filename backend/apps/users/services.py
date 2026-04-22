@@ -153,5 +153,13 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
 def clear_auth_cookies(response: Response) -> None:
     """Clear JWT cookies from the client on logout or refresh failure."""
     cookie_settings = settings.SIMPLE_JWT
-    response.delete_cookie(cookie_settings["AUTH_COOKIE_ACCESS"], path=cookie_settings["AUTH_COOKIE_PATH"])
-    response.delete_cookie(cookie_settings["AUTH_COOKIE_REFRESH"], path=cookie_settings["AUTH_COOKIE_PATH"])
+    response.delete_cookie(
+        cookie_settings["AUTH_COOKIE_ACCESS"],
+        path=cookie_settings["AUTH_COOKIE_PATH"],
+        samesite=cookie_settings["AUTH_COOKIE_SAMESITE"],
+    )
+    response.delete_cookie(
+        cookie_settings["AUTH_COOKIE_REFRESH"],
+        path=cookie_settings["AUTH_COOKIE_PATH"],
+        samesite=cookie_settings["AUTH_COOKIE_SAMESITE"],
+    )
