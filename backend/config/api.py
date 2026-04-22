@@ -11,6 +11,25 @@ class StandardResultsSetPagination(PageNumberPagination):
     max_page_size = 100
 
 
+def extract_error_message(details: Any) -> str:
+    """Pull the most useful human-readable message from nested DRF validation errors."""
+
+    if isinstance(details, dict):
+        for key in ("detail", "message", "non_field_errors", "file", "raw_text"):
+            if key in details:
+                return extract_error_message(details[key])
+        for value in details.values():
+            message = extract_error_message(value)
+            if message:
+                return message
+        return ""
+
+    if isinstance(details, list):
+        return extract_error_message(details[0]) if details else ""
+
+    return str(details) if details is not None else ""
+
+
 def custom_exception_handler(exc: Exception, context: dict[str, Any]) -> Response:
     response = exception_handler(exc, context)
 
@@ -35,10 +54,10 @@ def custom_exception_handler(exc: Exception, context: dict[str, Any]) -> Respons
             message = str(detail)
             code = getattr(detail, "code", code)
         else:
-            message = "Validation error."
-            code = "validation_error"
+            message = extract_error_message(details) or "Validation error."
+            code = str(details.get("code") or "validation_error")
     elif isinstance(details, list):
-        message = "Validation error."
+        message = extract_error_message(details) or "Validation error."
         code = "validation_error"
     else:
         message = str(details)

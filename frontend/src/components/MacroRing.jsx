@@ -30,10 +30,10 @@ export function MacroRing({ label, value, goal, color }) {
             stroke={color}
             strokeWidth="12"
             strokeLinecap="round"
+            style={{ strokeDasharray: circumference, strokeDashoffset: circumference }}
             initial={{ strokeDashoffset: circumference }}
             animate={{ strokeDashoffset: offset }}
             transition={{ duration: 0.7 }}
-            strokeDasharray={circumference}
           />
         </svg>
         <div className="absolute text-center">

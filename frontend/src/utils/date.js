@@ -6,6 +6,11 @@ export function formatDateLabel(value, options = {}) {
   }).format(new Date(value));
 }
 
+export function getLocalDateString(date = new Date()) {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().split("T")[0];
+}
+
 export function formatDateTime(value) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",

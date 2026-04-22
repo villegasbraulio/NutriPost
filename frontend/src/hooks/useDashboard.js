@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { dashboardService } from "../services/dashboardService";
+import { getLocalDateString } from "../utils/date";
 
 const EMPTY_SUMMARY = {
   period: "7d",
@@ -19,7 +20,88 @@ const EMPTY_SUMMARY = {
     fat_goal_g: 0,
   },
   recent_activities: [],
+  today: {
+    date: getLocalDateString(),
+    calories_burned: 0,
+    calories_consumed: 0,
+    net_balance: 0,
+    protein_g: 0,
+    carbs_g: 0,
+    fat_g: 0,
+  },
 };
+
+function toNumber(value, fallback = 0) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function buildEmptyWeeklyProgress() {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - index));
+    return {
+      date: getLocalDateString(date),
+      calories_burned: 0,
+      calories_consumed: 0,
+      protein_g: 0,
+      carbs_g: 0,
+      fat_g: 0,
+      calories_goal: 0,
+      protein_goal_g: 0,
+      carbs_goal_g: 0,
+      fat_goal_g: 0,
+    };
+  });
+}
+
+function normalizeProgress(payload) {
+  const items = Array.isArray(payload?.weekly_progress) ? payload.weekly_progress : [];
+  if (!items.length) {
+    return buildEmptyWeeklyProgress();
+  }
+
+  return items.map((item) => ({
+    date: item.date,
+    calories_burned: toNumber(item.calories_burned),
+    calories_consumed: toNumber(item.calories_consumed),
+    protein_g: toNumber(item.protein_g),
+    carbs_g: toNumber(item.carbs_g),
+    fat_g: toNumber(item.fat_g),
+    calories_goal: toNumber(item.calories_goal),
+    protein_goal_g: toNumber(item.protein_goal_g),
+    carbs_goal_g: toNumber(item.carbs_goal_g),
+    fat_goal_g: toNumber(item.fat_goal_g),
+  }));
+}
+
+function normalizeSummary(summary, period) {
+  const source = summary || { ...EMPTY_SUMMARY, period };
+  return {
+    ...EMPTY_SUMMARY,
+    ...source,
+    period,
+    calories_burned: toNumber(source.calories_burned),
+    calories_consumed: toNumber(source.calories_consumed),
+    net_balance: toNumber(source.net_balance),
+    macros: {
+      protein_g: toNumber(source.macros?.protein_g),
+      carbs_g: toNumber(source.macros?.carbs_g),
+      fat_g: toNumber(source.macros?.fat_g),
+    },
+    today: {
+      ...EMPTY_SUMMARY.today,
+      ...(source.today || {}),
+      calories_burned: toNumber(source.today?.calories_burned),
+      calories_consumed: toNumber(source.today?.calories_consumed),
+      net_balance: toNumber(source.today?.net_balance),
+      protein_g: toNumber(source.today?.protein_g),
+      carbs_g: toNumber(source.today?.carbs_g),
+      fat_g: toNumber(source.today?.fat_g),
+    },
+    recent_activities: Array.isArray(source.recent_activities) ? source.recent_activities : [],
+  };
+}
 
 function delay(ms) {
   return new Promise((resolve) => {
@@ -80,12 +162,12 @@ export function useDashboard(period = "7d") {
           return;
         }
 
-        setSummary(summaryResult.status === "fulfilled" ? summaryResult.value : { ...EMPTY_SUMMARY, period });
+        setSummary(normalizeSummary(summaryResult.status === "fulfilled" ? summaryResult.value : null, period));
         setStreak(
           streakResult.status === "fulfilled" ? streakResult.value.streak || 0 : 0,
         );
         setProgress(
-          progressResult.status === "fulfilled" ? progressResult.value.weekly_progress || [] : [],
+          progressResult.status === "fulfilled" ? normalizeProgress(progressResult.value) : buildEmptyWeeklyProgress(),
         );
       } finally {
         if (active) {

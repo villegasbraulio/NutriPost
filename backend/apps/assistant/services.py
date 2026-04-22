@@ -74,7 +74,7 @@ inside the NutriPost app. You give practical, evidence-based advice.
 USER PROFILE:
 - Name: {ctx['name']}
 - Weight: {ctx['weight_kg']} kg
-- Goal: {ctx['goal']} (lose / maintain / gain)
+- Goal: {ctx['goal']} (lose / reduce_fat / maintain / gain)
 - Daily calorie goal: {ctx['daily_goal_calories']} kcal
 - TDEE: {ctx['tdee']} kcal
 

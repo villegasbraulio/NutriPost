@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
-import { Save } from "lucide-react";
+import { HelpCircle, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
@@ -17,12 +17,13 @@ const profileSchema = z.object({
   age: z.coerce.number().min(13),
   gender: z.enum(["male", "female", "other"]),
   activity_level: z.enum(["sedentary", "light", "moderate", "active", "very_active"]),
-  goal: z.enum(["lose", "maintain", "gain"]),
+  goal: z.enum(["lose", "reduce_fat", "maintain", "gain"]),
 });
 
 export function ProfilePage() {
   const { user, updateProfile } = useAuth();
   const [saved, setSaved] = useState(false);
+  const [activeHelp, setActiveHelp] = useState(null);
   const {
     register,
     handleSubmit,
@@ -53,6 +54,31 @@ export function ProfilePage() {
 
   const preview = watch();
   const targets = user?.daily_goal_preview || preview?.daily_goal_preview;
+  const targetCards = targets
+    ? [
+        {
+          key: "bmr",
+          label: "BMR",
+          value: Math.round(targets.bmr || 0),
+          helper: "Tu metabolismo basal: calorías que tu cuerpo usa en reposo para vivir, sin contar actividad ni entrenamiento.",
+        },
+        {
+          key: "tdee",
+          label: "TDEE",
+          value: Math.round(targets.tdee || 0),
+          helper: "Tu gasto total diario estimado: BMR multiplicado por tu nivel de actividad.",
+        },
+        {
+          key: "objective",
+          label: "Objetivo",
+          value: Math.round(targets.calorias_objetivo || targets.calories_goal || 0),
+          meta: `${Number(targets.goal_adjustment_calories || 0) > 0 ? "+" : ""}${Math.round(
+            targets.goal_adjustment_calories || 0
+          )} kcal por objetivo`,
+          helper: "Las calorías recomendadas para tu meta: TDEE ajustado para perder peso, disminuir grasa, mantener o ganar masa muscular.",
+        },
+      ]
+    : [];
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
@@ -103,9 +129,10 @@ export function ProfilePage() {
           <div className="sm:col-span-2">
             <label className="mb-2 block text-sm text-textMuted">Goal</label>
             <select {...register("goal")} className="focus-ring w-full rounded-2xl border border-white/10 bg-background/60 px-4 py-3">
-              <option value="lose">Lose</option>
-              <option value="maintain">Maintain</option>
-              <option value="gain">Gain</option>
+              <option value="lose">Perder peso</option>
+              <option value="reduce_fat">Disminuir grasa</option>
+              <option value="maintain">Mantenimiento</option>
+              <option value="gain">Ganar masa muscular</option>
             </select>
           </div>
 
@@ -132,13 +159,38 @@ export function ProfilePage() {
         <div className="mt-6 grid gap-4">
           {targets ? (
             <>
-              <div className="rounded-3xl bg-background/60 p-5">
-                <p className="text-sm text-textMuted">TDEE</p>
-                <p className="mt-2 text-3xl font-bold">{Math.round(targets.tdee || 0)} kcal</p>
-              </div>
-              <div className="rounded-3xl bg-background/60 p-5">
-                <p className="text-sm text-textMuted">Daily calorie goal</p>
-                <p className="mt-2 text-3xl font-bold">{Math.round(targets.calories_goal || 0)} kcal</p>
+              <div className="grid gap-4">
+                {targetCards.map((card) => {
+                  const isOpen = activeHelp === card.key;
+                  return (
+                    <div key={card.key} className="rounded-3xl bg-background/60 p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-sm text-textMuted">{card.label}</p>
+                          <p className="mt-2 text-3xl font-bold">{card.value} kcal</p>
+                          {card.meta ? <p className="mt-1 text-xs text-textMuted">{card.meta}</p> : null}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveHelp(isOpen ? null : card.key)}
+                          className="rounded-full border border-white/10 bg-surface/70 p-2 text-textMuted transition hover:border-primary/40 hover:text-primary"
+                          aria-label={`Ayuda sobre ${card.label}`}
+                        >
+                          <HelpCircle className="h-4 w-4" />
+                        </button>
+                      </div>
+                      {isOpen ? (
+                        <motion.p
+                          initial={{ opacity: 0, y: -6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mt-4 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm leading-relaxed text-textMuted"
+                        >
+                          {card.helper}
+                        </motion.p>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 {[

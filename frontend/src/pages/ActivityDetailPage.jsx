@@ -1,4 +1,4 @@
-import { Flame, UtensilsCrossed } from "lucide-react";
+import { Dumbbell, Flame, UtensilsCrossed } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
@@ -74,6 +74,15 @@ export function ActivityDetailPage() {
               {activityLog.duration_minutes} minutes • {formatDateTime(activityLog.logged_at)}
             </p>
             {activityLog.notes ? <p className="mt-4 max-w-2xl text-textMuted">{activityLog.notes}</p> : null}
+            {activityLog.gym_routine ? (
+              <button
+                onClick={() => navigate(`/routines/${activityLog.gym_routine.id}`)}
+                className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-secondary/30 px-4 py-2 text-sm font-semibold text-secondary"
+              >
+                <Dumbbell className="h-4 w-4" />
+                Routine: {activityLog.gym_routine.name}
+              </button>
+            ) : null}
           </div>
           <div className="rounded-3xl bg-primary/10 px-5 py-4">
             <div className="flex items-center gap-2 text-primary">

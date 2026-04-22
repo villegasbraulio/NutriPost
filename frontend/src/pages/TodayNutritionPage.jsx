@@ -5,11 +5,12 @@ import { Link } from "react-router-dom";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { useAuth } from "../hooks/useAuth";
 import { useNutrition } from "../hooks/useNutrition";
+import { getLocalDateString } from "../utils/date";
 
 const mealOrder = ["breakfast", "lunch", "dinner", "snack", "post_workout"];
 
 export function TodayNutritionPage() {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   const { user } = useAuth();
   const { foodLogs, loading } = useNutrition(today);
 
@@ -32,6 +33,12 @@ export function TodayNutritionPage() {
     protein_goal_g: 0,
     carbs_goal_g: 0,
     fat_goal_g: 0,
+  };
+  const remaining = {
+    calories: Number(goals.calories_goal || 0) - totals.calories,
+    protein_g: Number(goals.protein_goal_g || 0) - totals.protein_g,
+    carbs_g: Number(goals.carbs_goal_g || 0) - totals.carbs_g,
+    fat_g: Number(goals.fat_goal_g || 0) - totals.fat_g,
   };
 
   const groupedMeals = mealOrder.reduce((groups, mealType) => {
@@ -84,11 +91,21 @@ export function TodayNutritionPage() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <div className="rounded-3xl bg-background/60 p-4">
             <p className="text-sm text-textMuted">Remaining calories</p>
-            <p className="mt-2 text-3xl font-bold">{Math.round(goals.calories_goal - totals.calories)} kcal</p>
+            <p className={`mt-2 text-3xl font-bold ${remaining.calories < 0 ? "text-accent" : ""}`}>
+              {Math.round(Math.abs(remaining.calories))} kcal
+            </p>
+            <p className="mt-1 text-xs text-textMuted">
+              {remaining.calories < 0 ? "Over daily calories" : "Left today"}
+            </p>
           </div>
           <div className="rounded-3xl bg-background/60 p-4">
             <p className="text-sm text-textMuted">Remaining protein</p>
-            <p className="mt-2 text-3xl font-bold">{Math.round(goals.protein_goal_g - totals.protein_g)} g</p>
+            <p className={`mt-2 text-3xl font-bold ${remaining.protein_g < 0 ? "text-primary" : ""}`}>
+              {Math.round(Math.abs(remaining.protein_g))} g
+            </p>
+            <p className="mt-1 text-xs text-textMuted">
+              {remaining.protein_g < 0 ? "Above target" : "Left today"}
+            </p>
           </div>
         </div>
       </section>

@@ -47,10 +47,11 @@ class GroqResponse:
 class GroqModel:
     """OpenAI-compatible Groq adapter so app services keep a provider-neutral interface."""
 
-    def __init__(self, *, system_instruction=None, temperature=0.7):
-        self.model_name = settings.GROQ_MODEL_NAME
+    def __init__(self, *, system_instruction=None, temperature=0.7, model_name=None, max_tokens=1000):
+        self.model_name = model_name or settings.GROQ_MODEL_NAME
         self.system_instruction = system_instruction
         self.temperature = temperature
+        self.max_tokens = max_tokens
         self.client = OpenAI(
             api_key=get_configured_api_key(),
             base_url=settings.GROQ_API_BASE_URL,
@@ -76,35 +77,40 @@ class GroqModel:
             model_name=self.model_name,
             messages=messages,
             temperature=self.temperature,
+            max_tokens=self.max_tokens,
         )
 
-    def generate_content(self, prompt: str):
-        messages = []
+    def generate_messages(self, messages: list[dict]):
+        prepared_messages = []
         if self.system_instruction:
-            messages.append({"role": "system", "content": self.system_instruction})
-        messages.append({"role": "user", "content": prompt})
+            prepared_messages.append({"role": "system", "content": self.system_instruction})
+        prepared_messages.extend(messages)
 
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name,
-                messages=messages,
+                messages=prepared_messages,
                 temperature=self.temperature,
-                max_tokens=1000,
+                max_tokens=self.max_tokens,
             )
         except Exception as exc:  # pragma: no cover - provider/network failures depend on runtime state
             raise_groq_error("Groq could not complete the request:", exc)
 
         return GroqResponse(text=response.choices[0].message.content or "")
 
+    def generate_content(self, prompt: str):
+        return self.generate_messages([{"role": "user", "content": prompt}])
+
 
 class GroqChat:
     """Wrap Groq chat calls so provider failures become consistent API errors."""
 
-    def __init__(self, *, client, model_name: str, messages: list[dict], temperature: float):
+    def __init__(self, *, client, model_name: str, messages: list[dict], temperature: float, max_tokens: int):
         self.client = client
         self.model_name = model_name
         self.messages = messages
         self.temperature = temperature
+        self.max_tokens = max_tokens
 
     def send_message(self, message: str):
         messages = [*self.messages, {"role": "user", "content": message}]
@@ -113,7 +119,7 @@ class GroqChat:
                 model=self.model_name,
                 messages=messages,
                 temperature=self.temperature,
-                max_tokens=1000,
+                max_tokens=self.max_tokens,
             )
         except Exception as exc:  # pragma: no cover - provider/network failures depend on runtime state
             raise_groq_error("Groq could not complete the chat response:", exc)
@@ -128,3 +134,16 @@ def get_model(system_instruction=None, temperature=0.7):
     """
 
     return GroqModel(system_instruction=system_instruction, temperature=temperature)
+
+
+def get_vision_model(system_instruction=None, temperature=0.1):
+    """
+    Returns a Groq vision-capable model instance for image-based routine parsing.
+    """
+
+    return GroqModel(
+        system_instruction=system_instruction,
+        temperature=temperature,
+        model_name=settings.GROQ_VISION_MODEL_NAME,
+        max_tokens=1400,
+    )

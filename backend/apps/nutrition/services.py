@@ -17,15 +17,17 @@ from .models import DailyGoal, FoodLog, MealRecommendation
 POST_WORKOUT_NOTES = "Based on ISSN 2017 and ACSM/AND/DC 2016 position stands."
 PROTEIN_MULTIPLIERS = {
     "lose": {"strength": Decimal("2.2"), "cardio": Decimal("1.8"), "flexibility": Decimal("1.4"), "sport": Decimal("2.0")},
+    "reduce_fat": {"strength": Decimal("2.0"), "cardio": Decimal("1.6"), "flexibility": Decimal("1.3"), "sport": Decimal("1.8")},
     "maintain": {"strength": Decimal("1.8"), "cardio": Decimal("1.4"), "flexibility": Decimal("1.2"), "sport": Decimal("1.6")},
     "gain": {"strength": Decimal("2.4"), "cardio": Decimal("1.6"), "flexibility": Decimal("1.4"), "sport": Decimal("2.2")},
 }
 CARB_MULTIPLIERS = {
     "lose": {"strength": Decimal("0.8"), "cardio": Decimal("1.0"), "flexibility": Decimal("0.5"), "sport": Decimal("1.0")},
+    "reduce_fat": {"strength": Decimal("1.0"), "cardio": Decimal("1.2"), "flexibility": Decimal("0.7"), "sport": Decimal("1.2")},
     "maintain": {"strength": Decimal("1.2"), "cardio": Decimal("1.4"), "flexibility": Decimal("0.8"), "sport": Decimal("1.3")},
     "gain": {"strength": Decimal("1.5"), "cardio": Decimal("1.6"), "flexibility": Decimal("1.0"), "sport": Decimal("1.5")},
 }
-FAT_TARGETS = {"lose": Decimal("5"), "maintain": Decimal("10"), "gain": Decimal("12")}
+FAT_TARGETS = {"lose": Decimal("5"), "reduce_fat": Decimal("8"), "maintain": Decimal("10"), "gain": Decimal("12")}
 
 
 def quantize(value: Decimal) -> Decimal:

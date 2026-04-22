@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Bot, Dumbbell, Home, Salad, UserCircle2 } from "lucide-react";
+import { Bot, ClipboardList, Dumbbell, Home, Salad, UserCircle2 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { useAuth } from "../hooks/useAuth";
@@ -8,6 +8,7 @@ const navigation = [
   { to: "/dashboard", label: "Dashboard", icon: Home },
   { to: "/assistant", label: "NutriCoach", icon: Bot },
   { to: "/activities/logs", label: "Activities", icon: Dumbbell },
+  { to: "/routines", label: "Routines", icon: ClipboardList },
   { to: "/nutrition/today", label: "Nutrition", icon: Salad },
   { to: "/profile", label: "Profile", icon: UserCircle2 },
 ];
@@ -42,8 +43,8 @@ export function DashboardLayout() {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row">
-        <nav className="glass-panel flex gap-2 overflow-x-auto rounded-3xl p-2 lg:w-64 lg:flex-col lg:self-start">
+      <div className="mx-auto flex min-w-0 max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row">
+        <nav className="glass-panel flex max-w-full gap-2 overflow-x-auto rounded-3xl p-2 lg:w-64 lg:shrink-0 lg:flex-col lg:self-start">
           {navigation.map((item) => {
             const Icon = item.icon;
             return (
@@ -68,7 +69,7 @@ export function DashboardLayout() {
         <motion.main
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex-1"
+          className="min-w-0 flex-1"
         >
           <Outlet />
         </motion.main>

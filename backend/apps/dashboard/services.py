@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.db.models import Sum
@@ -23,25 +23,90 @@ def get_period_days(period: str) -> int:
     return mapping.get(period, 7)
 
 
-def build_summary(user, period: str) -> dict:
-    """Aggregate calories burned, consumed, and macro totals over a requested day window."""
+def get_date_range(period: str) -> tuple[date, date]:
+    """Return inclusive local dates for a dashboard period."""
 
     days = get_period_days(period)
     today = timezone.localdate()
-    start_date = today - timedelta(days=days - 1)
+    return today - timedelta(days=days - 1), today
 
-    activity_logs = ActivityLog.objects.filter(user=user, logged_at__date__gte=start_date)
-    food_logs = FoodLog.objects.filter(user=user, logged_at__date__gte=start_date)
 
-    calories_burned = activity_logs.aggregate(total=Sum("calories_burned"))["total"] or Decimal("0")
-    calories_consumed = food_logs.aggregate(total=Sum("calories"))["total"] or Decimal("0")
-    protein_total = food_logs.aggregate(total=Sum("protein_g"))["total"] or Decimal("0")
-    carbs_total = food_logs.aggregate(total=Sum("carbs_g"))["total"] or Decimal("0")
-    fat_total = food_logs.aggregate(total=Sum("fat_g"))["total"] or Decimal("0")
+def get_local_datetime_range(start_date: date, end_date: date) -> tuple[datetime, datetime]:
+    """Convert inclusive local dates into timezone-aware datetime bounds for DB filtering."""
+
+    current_timezone = timezone.get_current_timezone()
+    start_at = timezone.make_aware(datetime.combine(start_date, time.min), current_timezone)
+    end_at = timezone.make_aware(datetime.combine(end_date + timedelta(days=1), time.min), current_timezone)
+    return start_at, end_at
+
+
+def get_local_date(value) -> date:
+    """Return the local calendar date for a stored aware datetime."""
+
+    return timezone.localtime(value).date()
+
+
+def empty_day_payload(current_date: date) -> dict:
+    """Build the stable dashboard shape for a single local day."""
+
+    return {
+        "date": current_date.isoformat(),
+        "calories_burned": Decimal("0"),
+        "calories_consumed": Decimal("0"),
+        "protein_g": Decimal("0"),
+        "carbs_g": Decimal("0"),
+        "fat_g": Decimal("0"),
+    }
+
+
+def decimal_to_float(value):
+    """Serialize Decimal values without leaking Decimal objects into API payloads."""
+
+    return float(value) if isinstance(value, Decimal) else value
+
+
+def build_summary(user, period: str) -> dict:
+    """Aggregate period and today dashboard totals using local-date boundaries."""
+
+    start_date, today = get_date_range(period)
+    start_at, end_at = get_local_datetime_range(start_date, today)
+    today_start_at, tomorrow_start_at = get_local_datetime_range(today, today)
+
+    activity_logs = ActivityLog.objects.filter(user=user, logged_at__gte=start_at, logged_at__lt=end_at)
+    food_logs = FoodLog.objects.filter(user=user, logged_at__gte=start_at, logged_at__lt=end_at)
+    today_activity_logs = activity_logs.filter(logged_at__gte=today_start_at, logged_at__lt=tomorrow_start_at)
+    today_food_logs = food_logs.filter(logged_at__gte=today_start_at, logged_at__lt=tomorrow_start_at)
+
+    activity_totals = activity_logs.aggregate(calories_burned=Sum("calories_burned"))
+    food_totals = food_logs.aggregate(
+        calories_consumed=Sum("calories"),
+        protein_g=Sum("protein_g"),
+        carbs_g=Sum("carbs_g"),
+        fat_g=Sum("fat_g"),
+    )
+    today_activity_totals = today_activity_logs.aggregate(calories_burned=Sum("calories_burned"))
+    today_food_totals = today_food_logs.aggregate(
+        calories_consumed=Sum("calories"),
+        protein_g=Sum("protein_g"),
+        carbs_g=Sum("carbs_g"),
+        fat_g=Sum("fat_g"),
+    )
+    calories_burned = activity_totals["calories_burned"] or Decimal("0")
+    calories_consumed = food_totals["calories_consumed"] or Decimal("0")
+    protein_total = food_totals["protein_g"] or Decimal("0")
+    carbs_total = food_totals["carbs_g"] or Decimal("0")
+    fat_total = food_totals["fat_g"] or Decimal("0")
+    today_calories_burned = today_activity_totals["calories_burned"] or Decimal("0")
+    today_calories_consumed = today_food_totals["calories_consumed"] or Decimal("0")
+    today_protein = today_food_totals["protein_g"] or Decimal("0")
+    today_carbs = today_food_totals["carbs_g"] or Decimal("0")
+    today_fat = today_food_totals["fat_g"] or Decimal("0")
 
     today_goal = ensure_daily_goal(user, today)
     return {
         "period": period,
+        "start_date": start_date.isoformat(),
+        "end_date": today.isoformat(),
         "calories_burned": float(calories_burned),
         "calories_consumed": float(calories_consumed),
         "net_balance": float(calories_burned - calories_consumed),
@@ -51,6 +116,15 @@ def build_summary(user, period: str) -> dict:
             "fat_g": float(fat_total),
         },
         "today_goal": DailyGoalSerializer(today_goal).data,
+        "today": {
+            "date": today.isoformat(),
+            "calories_burned": float(today_calories_burned),
+            "calories_consumed": float(today_calories_consumed),
+            "net_balance": float(today_calories_burned - today_calories_consumed),
+            "protein_g": float(today_protein),
+            "carbs_g": float(today_carbs),
+            "fat_g": float(today_fat),
+        },
         "recent_activities": [
             {
                 "id": log.id,
@@ -58,7 +132,7 @@ def build_summary(user, period: str) -> dict:
                 "category": log.activity_type.category,
                 "duration_minutes": log.duration_minutes,
                 "calories_burned": float(log.calories_burned),
-                "logged_at": log.logged_at.isoformat(),
+                "logged_at": timezone.localtime(log.logged_at).isoformat(),
             }
             for log in activity_logs.select_related("activity_type").order_by("-logged_at")[:5]
         ],
@@ -68,7 +142,10 @@ def build_summary(user, period: str) -> dict:
 def build_streak(user) -> dict:
     """Count consecutive days ending today with at least one activity log."""
 
-    logged_dates = list(ActivityLog.objects.filter(user=user).dates("logged_at", "day", order="DESC"))
+    logged_dates = [
+        get_local_date(value)
+        for value in ActivityLog.objects.filter(user=user).values_list("logged_at", flat=True)
+    ]
     streak = 0
     cursor = timezone.localdate()
     logged_set = set(logged_dates)
@@ -81,32 +158,21 @@ def build_streak(user) -> dict:
 def build_progress(user) -> dict:
     """Return a weekly view of goal progress comparing burn and intake against daily targets."""
 
-    today = timezone.localdate()
-    start_date = today - timedelta(days=6)
-    activity_logs = ActivityLog.objects.filter(user=user, logged_at__date__gte=start_date).select_related(
-        "activity_type"
-    )
-    food_logs = FoodLog.objects.filter(user=user, logged_at__date__gte=start_date)
+    start_date, today = get_date_range("7d")
+    start_at, end_at = get_local_datetime_range(start_date, today)
+    activity_logs = ActivityLog.objects.filter(user=user, logged_at__gte=start_at, logged_at__lt=end_at)
+    food_logs = FoodLog.objects.filter(user=user, logged_at__gte=start_at, logged_at__lt=end_at)
 
-    daily = defaultdict(
-        lambda: {
-            "date": None,
-            "calories_burned": Decimal("0"),
-            "calories_consumed": Decimal("0"),
-            "protein_g": Decimal("0"),
-            "carbs_g": Decimal("0"),
-            "fat_g": Decimal("0"),
-        }
-    )
+    daily = defaultdict(lambda: None)
 
     for log in activity_logs:
-        key = log.logged_at.date()
-        daily[key]["date"] = key.isoformat()
+        key = get_local_date(log.logged_at)
+        daily[key] = daily[key] or empty_day_payload(key)
         daily[key]["calories_burned"] += Decimal(log.calories_burned)
 
     for log in food_logs:
-        key = log.logged_at.date()
-        daily[key]["date"] = key.isoformat()
+        key = get_local_date(log.logged_at)
+        daily[key] = daily[key] or empty_day_payload(key)
         daily[key]["calories_consumed"] += Decimal(log.calories)
         daily[key]["protein_g"] += Decimal(log.protein_g)
         daily[key]["carbs_g"] += Decimal(log.carbs_g)
@@ -116,7 +182,7 @@ def build_progress(user) -> dict:
     for offset in range(7):
         current_date = start_date + timedelta(days=offset)
         goal = ensure_daily_goal(user, current_date)
-        item = daily[current_date]
+        item = daily[current_date] or empty_day_payload(current_date)
         item["date"] = current_date.isoformat()
         item["calories_goal"] = float(goal.calories_goal)
         item["protein_goal_g"] = float(goal.protein_goal_g)
@@ -124,7 +190,7 @@ def build_progress(user) -> dict:
         item["fat_goal_g"] = float(goal.fat_goal_g)
         payload.append(
             {
-                key: float(value) if isinstance(value, Decimal) else value
+                key: decimal_to_float(value)
                 for key, value in item.items()
             }
         )
@@ -143,11 +209,11 @@ def aggregate_daily_stats(activities, foods, period_start: date, period_end: dat
     )
 
     for activity in activities:
-        current_date = activity.logged_at.date()
+        current_date = get_local_date(activity.logged_at)
         daily[current_date]["calories_burned"] += Decimal(activity.calories_burned)
 
     for food in foods:
-        current_date = food.logged_at.date()
+        current_date = get_local_date(food.logged_at)
         daily[current_date]["calories_consumed"] += Decimal(food.calories)
         daily[current_date]["protein_g"] += Decimal(food.protein_g)
 
@@ -199,15 +265,16 @@ def generate_weekly_insight(user, language_hint: str | None = None) -> str:
 
     period_end = timezone.localdate()
     period_start = period_end - timedelta(days=6)
+    start_at, end_at = get_local_datetime_range(period_start, period_end)
     activities = ActivityLog.objects.filter(
         user=user,
-        logged_at__date__gte=period_start,
-        logged_at__date__lte=period_end,
+        logged_at__gte=start_at,
+        logged_at__lt=end_at,
     ).select_related("activity_type")
     foods = FoodLog.objects.filter(
         user=user,
-        logged_at__date__gte=period_start,
-        logged_at__date__lte=period_end,
+        logged_at__gte=start_at,
+        logged_at__lt=end_at,
     )
     daily_stats = aggregate_daily_stats(activities, foods, period_start, period_end)
     goal_targets = calculate_daily_goal_targets(user)
@@ -256,13 +323,17 @@ def get_weekly_insight(user, language_hint: str | None = None) -> dict:
 
     period_end = timezone.localdate()
     period_start = period_end - timedelta(days=6)
+    start_at, end_at = get_local_datetime_range(period_start, period_end)
 
     activity_days = list(
-        ActivityLog.objects.filter(
-            user=user,
-            logged_at__date__gte=period_start,
-            logged_at__date__lte=period_end,
-        ).dates("logged_at", "day")
+        {
+            get_local_date(value)
+            for value in ActivityLog.objects.filter(
+                user=user,
+                logged_at__gte=start_at,
+                logged_at__lt=end_at,
+            ).values_list("logged_at", flat=True)
+        }
     )
     if len(activity_days) < INSIGHT_MIN_ACTIVITY_DAYS:
         return {
