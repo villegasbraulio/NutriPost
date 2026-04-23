@@ -63,12 +63,16 @@ export function LoginPage() {
 
   const onSubmit = async (values) => {
     const redirectPath = location.state?.from?.pathname || "/dashboard";
-    await toast.promise(login(values), {
-      loading: copy.loginLoading,
-      success: copy.loginSuccess,
-      error: (error) => error.response?.data?.message || copy.loginError,
-    });
-    navigate(redirectPath, { replace: true });
+    try {
+      await toast.promise(login(values), {
+        loading: copy.loginLoading,
+        success: copy.loginSuccess,
+        error: (error) => error.response?.data?.message || copy.loginError,
+      });
+      navigate(redirectPath, { replace: true });
+    } catch {
+      return;
+    }
   };
 
   return (

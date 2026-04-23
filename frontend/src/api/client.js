@@ -47,6 +47,16 @@ function logApiError(error) {
   console.groupEnd();
 }
 
+function shouldSilenceAuthError(error) {
+  const status = error.response?.status;
+  const url = error.config?.url || "";
+
+  return (
+    status === 401 &&
+    (url.includes("/auth/me/") || url.includes("/auth/refresh/"))
+  );
+}
+
 apiClient.interceptors.request.use((config) => ({
   ...config,
   withCredentials: true,
@@ -67,7 +77,9 @@ apiClient.interceptors.response.use(
       originalRequest?._retry ||
       originalRequest?.url?.includes("/auth/refresh/")
     ) {
-      logApiError(error);
+      if (!shouldSilenceAuthError(error)) {
+        logApiError(error);
+      }
       return Promise.reject(error);
     }
 
@@ -93,7 +105,9 @@ apiClient.interceptors.response.use(
     } catch (refreshError) {
       flushQueue(refreshError);
       window.dispatchEvent(new Event("auth:expired"));
-      logApiError(refreshError);
+      if (!shouldSilenceAuthError(refreshError)) {
+        logApiError(refreshError);
+      }
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;

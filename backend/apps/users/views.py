@@ -4,9 +4,9 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.serializers import ValidationError
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -51,7 +51,7 @@ class AuthViewSet(viewsets.GenericViewSet):
             password=serializer.validated_data["password"],
         )
         if not user:
-            raise ValidationError({"detail": "Invalid username or password."})
+            raise AuthenticationFailed("Invalid username or password.")
 
         sync_current_week_daily_goals(user, timezone.localdate())
         refresh = RefreshToken.for_user(user)
