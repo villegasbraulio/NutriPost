@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
+import { useLanguage } from "../hooks/useLanguage";
 import { routineService } from "../services/routineService";
 import { staggerContainer, staggerItem } from "../utils/animations";
 
@@ -54,15 +55,21 @@ function getApiErrorMessage(error, fallback) {
   return nestedMessage || nestedFileMessage || data?.message || error.message || fallback;
 }
 
-function MetGauge({ value }) {
+function MetGauge({ value, isSpanish }) {
   const met = Number(value || 3.5);
   const percent = Math.min(Math.max(((met - 2.5) / 5.5) * 100, 0), 100);
-  const label = met >= 7 ? "very high" : met >= 5.5 ? "high" : met >= 4.2 ? "medium" : "low";
+  const label = met >= 7
+    ? isSpanish ? "muy alto" : "very high"
+    : met >= 5.5
+      ? isSpanish ? "alto" : "high"
+      : met >= 4.2
+        ? isSpanish ? "medio" : "medium"
+        : isSpanish ? "bajo" : "low";
 
   return (
     <div className="rounded-3xl border border-primary/20 bg-primary/10 p-5">
       <div className="flex items-center justify-between">
-        <p className="text-sm uppercase tracking-[0.2em] text-primary">Adjusted MET</p>
+        <p className="text-sm uppercase tracking-[0.2em] text-primary">{isSpanish ? "MET ajustado" : "Adjusted MET"}</p>
         <span className="rounded-full bg-background/60 px-3 py-1 text-xs capitalize text-textMuted">{label}</span>
       </div>
       <motion.p
@@ -82,14 +89,15 @@ function MetGauge({ value }) {
         />
       </div>
       <div className="mt-2 flex justify-between text-xs text-textMuted">
-        <span>2.5 light</span>
-        <span>8.0 dense</span>
+        <span>{isSpanish ? "2.5 liviano" : "2.5 light"}</span>
+        <span>{isSpanish ? "8.0 intenso" : "8.0 dense"}</span>
       </div>
     </div>
   );
 }
 
 export function RoutineFormPage() {
+  const { isSpanish } = useLanguage();
   const { id } = useParams();
   const navigate = useNavigate();
   const [routineId, setRoutineId] = useState(id || null);
@@ -107,6 +115,113 @@ export function RoutineFormPage() {
   const [parsingFile, setParsingFile] = useState(false);
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const copy = isSpanish
+    ? {
+        loadError: "No pudimos cargar esta rutina.",
+        saveError: "No pudimos guardar la rutina.",
+        parseFirst: "Pega primero tu rutina.",
+        parseSuccess: "Rutina interpretada. Puedes editarla antes de guardar.",
+        parseError: "No pudimos interpretar esta rutina.",
+        fileSuccess: "Archivo interpretado. Revísalo antes de guardar.",
+        fileError: "No pudimos interpretar este archivo.",
+        saveSuccess: "Rutina guardada.",
+        analyzeSuccess: "Calorías de la rutina recalculadas.",
+        analyzeError: "No pudimos analizar esta rutina.",
+        missingName: "Ponle un nombre a la rutina.",
+        missingExercises: "Agrega al menos un ejercicio.",
+        editTag: "Editar rutina",
+        newTag: "Nueva rutina",
+        title: "Construye tu sesión exacta",
+        description:
+          "Pega notas desordenadas, ordénalas y calcula calorías ejercicio por ejercicio usando tempo, descanso e intensidad.",
+        backToRoutines: "Volver a rutinas",
+        pasteTab: "Pegar rutina",
+        manualTab: "Armar manualmente",
+        uploadTitle: "Sube una imagen o PDF",
+        uploadText: "JPG, PNG, WEBP, PDF, TXT, CSV o Markdown. Los PDFs escaneados se leen a través de imágenes embebidas cuando es posible.",
+        reading: "Leyendo...",
+        chooseFile: "Elegir archivo",
+        readingText: "Leyendo tu rutina y convirtiéndola en ejercicios editables...",
+        orPaste: "O pega texto",
+        pastePlaceholder: "Pega tu rutina como la tengas escrita. Ejemplo: 4x8 sentadilla 80kg, 3x10 press banca 60kg, 3x12 jalón 55kg",
+        parsing: "Interpretando con Groq...",
+        parseRoutine: "Interpretar rutina",
+        routineName: "Nombre de la rutina",
+        estimatedDuration: "Duración estimada",
+        muscleGroups: "Grupos musculares, separados por coma",
+        musclePlaceholder: "pecho, hombros, tríceps",
+        descriptionLabel: "Descripción",
+        descriptionPlaceholder: "Notas, intención, plan de progresión...",
+        exercisePlaceholder: "Ejercicio",
+        sets: "Series",
+        reps: "Reps",
+        secPerRep: "Seg/reps",
+        rest: "Descanso",
+        compound: "Compuesto",
+        isolation: "Aislado",
+        cardioBurst: "Explosivo/cardio",
+        addExercise: "Agregar ejercicio",
+        analyzingText: "Calculando calorías ejercicio por ejercicio...",
+        aiJustification: "Justificación IA",
+        estimatedCalories: "Calorías estimadas de la rutina",
+        analyzeRoutine: "Analizar rutina",
+        analyzingButton: "Analizando...",
+        saveRoutine: "Guardar rutina",
+        saving: "Guardando...",
+      }
+    : {
+        loadError: "Could not load this routine.",
+        saveError: "Could not save this routine.",
+        parseFirst: "Paste your routine first.",
+        parseSuccess: "Routine parsed. You can edit it before saving.",
+        parseError: "Could not parse this routine.",
+        fileSuccess: "Routine file parsed. Review it before saving.",
+        fileError: "Could not parse this file.",
+        saveSuccess: "Routine saved.",
+        analyzeSuccess: "Routine calories recalculated.",
+        analyzeError: "Could not analyze this routine.",
+        missingName: "Give the routine a name.",
+        missingExercises: "Add at least one exercise.",
+        editTag: "Edit routine",
+        newTag: "New routine",
+        title: "Build your exact session",
+        description:
+          "Paste messy notes, clean them up, then calculate calories exercise by exercise from tempo, rest, and intensity.",
+        backToRoutines: "Back to routines",
+        pasteTab: "Paste your routine",
+        manualTab: "Build manually",
+        uploadTitle: "Upload an image or PDF",
+        uploadText: "JPG, PNG, WEBP, PDF, TXT, CSV, or Markdown. Scanned PDFs are read through embedded images when possible.",
+        reading: "Reading...",
+        chooseFile: "Choose file",
+        readingText: "Reading your routine and converting it into editable exercises...",
+        orPaste: "Or paste text",
+        pastePlaceholder: "Paste your routine however you have it written. Example: 4x8 squat 80kg, 3x10 bench 60kg, 3x12 lat pulldown 55kg",
+        parsing: "Parsing with Groq...",
+        parseRoutine: "Parse routine",
+        routineName: "Routine name",
+        estimatedDuration: "Estimated duration",
+        muscleGroups: "Muscle groups, comma separated",
+        musclePlaceholder: "chest, shoulders, triceps",
+        descriptionLabel: "Description",
+        descriptionPlaceholder: "Notes, intent, progression plan...",
+        exercisePlaceholder: "Exercise",
+        sets: "Sets",
+        reps: "Reps",
+        secPerRep: "Sec/rep",
+        rest: "Rest",
+        compound: "Compound",
+        isolation: "Isolation",
+        cardioBurst: "Cardio burst",
+        addExercise: "Add exercise",
+        analyzingText: "Calculating exercise-by-exercise calories...",
+        aiJustification: "AI justification",
+        estimatedCalories: "Estimated routine calories",
+        analyzeRoutine: "Analyze routine",
+        analyzingButton: "Analyzing...",
+        saveRoutine: "Save routine",
+        saving: "Saving...",
+      };
 
   useEffect(() => {
     if (!id) {
@@ -134,7 +249,7 @@ export function RoutineFormPage() {
           });
         }
       } catch (error) {
-        toast.error(error.response?.data?.message || "Could not load this routine.");
+        toast.error(error.response?.data?.message || copy.loadError);
       } finally {
         if (active) {
           setLoading(false);
@@ -146,7 +261,7 @@ export function RoutineFormPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, copy.loadError]);
 
   const updateExercise = (index, field, value) => {
     setExercises((items) =>
@@ -179,10 +294,10 @@ export function RoutineFormPage() {
   const buildPayload = () => {
     const normalizedExercises = normalizeExercises(exercises);
     if (!name.trim()) {
-      throw new Error("Give the routine a name.");
+      throw new Error(copy.missingName);
     }
     if (!normalizedExercises.length) {
-      throw new Error("Add at least one exercise.");
+      throw new Error(copy.missingExercises);
     }
 
     return {
@@ -214,7 +329,7 @@ export function RoutineFormPage() {
 
   const handleParse = async () => {
     if (!rawText.trim()) {
-      toast.error("Paste your routine first.");
+      toast.error(copy.parseFirst);
       return;
     }
 
@@ -222,9 +337,9 @@ export function RoutineFormPage() {
     try {
       const parsed = await routineService.parseRoutine(rawText);
       applyParsedRoutine(parsed);
-      toast.success("Routine parsed. You can edit it before saving.");
+      toast.success(copy.parseSuccess);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Could not parse this routine."));
+      toast.error(getApiErrorMessage(error, copy.parseError));
     } finally {
       setParsing(false);
     }
@@ -241,9 +356,9 @@ export function RoutineFormPage() {
     try {
       const parsed = await routineService.parseRoutineFile(file);
       applyParsedRoutine(parsed);
-      toast.success("Routine file parsed. Review it before saving.");
+      toast.success(copy.fileSuccess);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Could not parse this file."));
+      toast.error(getApiErrorMessage(error, copy.fileError));
     } finally {
       setParsingFile(false);
     }
@@ -253,10 +368,10 @@ export function RoutineFormPage() {
     setSaving(true);
     try {
       const savedRoutine = await persistRoutine();
-      toast.success("Routine saved.");
+      toast.success(copy.saveSuccess);
       navigate(`/routines/${savedRoutine.id}`);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Could not save this routine."));
+      toast.error(getApiErrorMessage(error, copy.saveError));
     } finally {
       setSaving(false);
     }
@@ -276,9 +391,9 @@ export function RoutineFormPage() {
       setDuration(routine.estimated_duration_minutes);
       setMuscleGroupsText((routine.muscle_groups || []).join(", "));
       setExercises(routine.exercises || []);
-      toast.success("Routine calories recalculated.");
+      toast.success(copy.analyzeSuccess);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Could not analyze this routine."));
+      toast.error(getApiErrorMessage(error, copy.analyzeError));
     } finally {
       setAnalyzing(false);
     }
@@ -293,14 +408,12 @@ export function RoutineFormPage() {
       <section className="glass-panel rounded-[32px] p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-primary">{id ? "Edit routine" : "New routine"}</p>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight">Build your exact session</h1>
-            <p className="mt-3 max-w-2xl text-textMuted">
-              Paste messy notes, clean them up, then calculate calories exercise by exercise from tempo, rest, and intensity.
-            </p>
+            <p className="text-sm uppercase tracking-[0.24em] text-primary">{id ? copy.editTag : copy.newTag}</p>
+            <h1 className="mt-3 text-4xl font-bold tracking-tight">{copy.title}</h1>
+            <p className="mt-3 max-w-2xl text-textMuted">{copy.description}</p>
           </div>
           <Link to="/routines" className="text-sm font-semibold text-primary">
-            Back to routines
+            {copy.backToRoutines}
           </Link>
         </div>
       </section>
@@ -308,8 +421,8 @@ export function RoutineFormPage() {
       <section className="glass-panel rounded-[32px] p-6">
         <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl bg-background/60 p-1">
           {[
-            ["paste", "Paste your routine"],
-            ["manual", "Build manually"],
+            ["paste", copy.pasteTab],
+            ["manual", copy.manualTab],
           ].map(([value, label]) => (
             <button
               key={value}
@@ -330,15 +443,13 @@ export function RoutineFormPage() {
                 <div>
                   <div className="flex items-center gap-2 text-secondary">
                     <FileUp className="h-5 w-5" />
-                    <p className="font-semibold">Upload an image or PDF</p>
+                    <p className="font-semibold">{copy.uploadTitle}</p>
                   </div>
-                  <p className="mt-2 text-sm text-textMuted">
-                    JPG, PNG, WEBP, PDF, TXT, CSV, or Markdown. Scanned PDFs are read through embedded images when possible.
-                  </p>
+                  <p className="mt-2 text-sm text-textMuted">{copy.uploadText}</p>
                 </div>
                 <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-secondary px-5 py-3 font-semibold text-white transition hover:bg-secondary/90">
                   <FileUp className="h-4 w-4" />
-                  {parsingFile ? "Reading..." : "Choose file"}
+                  {parsingFile ? copy.reading : copy.chooseFile}
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,text/markdown,text/csv,.txt,.md,.csv"
@@ -354,14 +465,14 @@ export function RoutineFormPage() {
                   transition={{ duration: 1.2, repeat: Infinity }}
                   className="mt-4 text-sm text-secondary"
                 >
-                  Reading your routine and converting it into editable exercises...
+                  {copy.readingText}
                 </motion.p>
               ) : null}
             </div>
 
             <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-textMuted">
               <div className="h-px flex-1 bg-white/10" />
-              Or paste text
+              {copy.orPaste}
               <div className="h-px flex-1 bg-white/10" />
             </div>
 
@@ -370,7 +481,7 @@ export function RoutineFormPage() {
               onChange={(event) => setRawText(event.target.value)}
               rows="8"
               className="focus-ring w-full rounded-3xl border border-white/10 bg-background/60 px-5 py-4"
-              placeholder="Paste your routine however you have it written. Example: 4x8 squat 80kg, 3x10 bench 60kg, 3x12 lat pulldown 55kg"
+              placeholder={copy.pastePlaceholder}
             />
             <button
               onClick={handleParse}
@@ -378,7 +489,7 @@ export function RoutineFormPage() {
               className="inline-flex items-center gap-2 rounded-2xl bg-secondary px-5 py-3 font-semibold text-white transition disabled:opacity-60"
             >
               <Sparkles className="h-4 w-4" />
-              {parsing ? "Parsing with Groq..." : "Parse routine"}
+              {parsing ? copy.parsing : copy.parseRoutine}
             </button>
           </div>
         ) : null}
@@ -393,7 +504,7 @@ export function RoutineFormPage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-sm text-textMuted">Routine name</span>
+                <span className="mb-2 block text-sm text-textMuted">{copy.routineName}</span>
                 <input
                   value={name}
                   onChange={(event) => setName(event.target.value)}
@@ -402,7 +513,7 @@ export function RoutineFormPage() {
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm text-textMuted">Estimated duration</span>
+                <span className="mb-2 block text-sm text-textMuted">{copy.estimatedDuration}</span>
                 <input
                   type="number"
                   min="1"
@@ -413,22 +524,22 @@ export function RoutineFormPage() {
                 />
               </label>
               <label className="block md:col-span-2">
-                <span className="mb-2 block text-sm text-textMuted">Muscle groups, comma separated</span>
+                <span className="mb-2 block text-sm text-textMuted">{copy.muscleGroups}</span>
                 <input
                   value={muscleGroupsText}
                   onChange={(event) => setMuscleGroupsText(event.target.value)}
                   className="focus-ring w-full rounded-2xl border border-white/10 bg-background/60 px-4 py-3"
-                  placeholder="chest, shoulders, triceps"
+                  placeholder={copy.musclePlaceholder}
                 />
               </label>
               <label className="block md:col-span-2">
-                <span className="mb-2 block text-sm text-textMuted">Description</span>
+                <span className="mb-2 block text-sm text-textMuted">{copy.descriptionLabel}</span>
                 <textarea
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   rows="3"
                   className="focus-ring w-full rounded-2xl border border-white/10 bg-background/60 px-4 py-3"
-                  placeholder="Notes, intent, progression plan..."
+                  placeholder={copy.descriptionPlaceholder}
                 />
               </label>
             </div>
@@ -444,7 +555,7 @@ export function RoutineFormPage() {
                     value={exercise.name}
                     onChange={(event) => updateExercise(index, "name", event.target.value)}
                     className="focus-ring col-span-2 min-w-0 rounded-2xl border border-white/10 bg-surface/60 px-3 py-2 sm:col-span-4 xl:col-span-1"
-                    placeholder="Exercise"
+                    placeholder={copy.exercisePlaceholder}
                   />
                   <input
                     type="number"
@@ -452,7 +563,7 @@ export function RoutineFormPage() {
                     value={exercise.sets}
                     onChange={(event) => updateExercise(index, "sets", event.target.value)}
                     className="focus-ring min-w-0 rounded-2xl border border-white/10 bg-surface/60 px-3 py-2"
-                    placeholder="Sets"
+                    placeholder={copy.sets}
                   />
                   <input
                     type="number"
@@ -460,7 +571,7 @@ export function RoutineFormPage() {
                     value={exercise.reps}
                     onChange={(event) => updateExercise(index, "reps", event.target.value)}
                     className="focus-ring min-w-0 rounded-2xl border border-white/10 bg-surface/60 px-3 py-2"
-                    placeholder="Reps"
+                    placeholder={copy.reps}
                   />
                   <input
                     type="number"
@@ -478,7 +589,7 @@ export function RoutineFormPage() {
                     value={exercise.seconds_per_rep ?? 3}
                     onChange={(event) => updateExercise(index, "seconds_per_rep", event.target.value)}
                     className="focus-ring min-w-0 rounded-2xl border border-white/10 bg-surface/60 px-3 py-2"
-                    placeholder="Sec/rep"
+                    placeholder={copy.secPerRep}
                   />
                   <label className="flex min-w-0 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-surface/60 px-3 py-2 text-sm text-textMuted">
                     <input
@@ -495,16 +606,16 @@ export function RoutineFormPage() {
                     value={exercise.rest_seconds}
                     onChange={(event) => updateExercise(index, "rest_seconds", event.target.value)}
                     className="focus-ring min-w-0 rounded-2xl border border-white/10 bg-surface/60 px-3 py-2"
-                    placeholder="Rest"
+                    placeholder={copy.rest}
                   />
                   <select
                     value={exercise.exercise_type}
                     onChange={(event) => updateExercise(index, "exercise_type", event.target.value)}
                     className="focus-ring col-span-2 min-w-0 rounded-2xl border border-white/10 bg-surface/60 px-3 py-2 sm:col-span-2 xl:col-span-1"
                   >
-                    <option value="compound">Compound</option>
-                    <option value="isolation">Isolation</option>
-                    <option value="cardio_burst">Cardio burst</option>
+                    <option value="compound">{copy.compound}</option>
+                    <option value="isolation">{copy.isolation}</option>
+                    <option value="cardio_burst">{copy.cardioBurst}</option>
                   </select>
                   <div className="col-span-2 flex justify-end gap-2 sm:col-span-2 xl:col-span-1 xl:justify-start">
                     <button
@@ -538,7 +649,7 @@ export function RoutineFormPage() {
               onClick={addExercise}
               className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-textMuted transition hover:text-textPrimary"
             >
-              Add exercise
+              {copy.addExercise}
             </button>
 
             {analyzing ? (
@@ -547,19 +658,19 @@ export function RoutineFormPage() {
                 transition={{ duration: 1.2, repeat: Infinity }}
                 className="rounded-3xl border border-secondary/20 bg-secondary/10 p-5 text-secondary"
               >
-                Calculating exercise-by-exercise calories...
+                {copy.analyzingText}
               </motion.div>
             ) : null}
 
             {analysis ? (
               <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-                <MetGauge value={analysis.adjusted_met} />
+                <MetGauge value={analysis.adjusted_met} isSpanish={isSpanish} />
                 <div className="rounded-3xl border border-white/10 bg-background/60 p-5">
-                  <p className="text-sm uppercase tracking-[0.2em] text-textMuted">AI justification</p>
+                  <p className="text-sm uppercase tracking-[0.2em] text-textMuted">{copy.aiJustification}</p>
                   <p className="mt-3 text-textMuted">{analysis.justification}</p>
                   {analysis.calorie_summary ? (
                     <p className="mt-4 rounded-2xl bg-primary/10 px-4 py-3 text-sm font-semibold text-primary">
-                      Estimated routine calories: ~{Math.round(analysis.calorie_summary.total_calories)} kcal
+                      {copy.estimatedCalories}: ~{Math.round(analysis.calorie_summary.total_calories)} kcal
                     </p>
                   ) : null}
                 </div>
@@ -574,7 +685,7 @@ export function RoutineFormPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-secondary/30 px-5 py-3 font-semibold text-secondary transition hover:bg-secondary/10 disabled:opacity-60"
               >
                 <Sparkles className="h-4 w-4" />
-                {analyzing ? "Analyzing..." : "Analyze routine"}
+                {analyzing ? copy.analyzingButton : copy.analyzeRoutine}
               </button>
               <button
                 type="button"
@@ -583,7 +694,7 @@ export function RoutineFormPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 font-semibold text-background transition disabled:opacity-60"
               >
                 <Save className="h-4 w-4" />
-                {saving ? "Saving..." : "Save routine"}
+                {saving ? copy.saving : copy.saveRoutine}
               </button>
             </div>
           </div>

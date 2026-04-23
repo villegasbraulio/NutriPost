@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
 
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
+import { useLanguage } from "../hooks/useLanguage";
 import { routineService } from "../services/routineService";
 import { staggerContainer, staggerItem } from "../utils/animations";
 
@@ -12,32 +13,100 @@ function normalizeListPayload(data) {
   return Array.isArray(data) ? data : data.results || [];
 }
 
-function metLabel(value) {
+function metLabel(value, isSpanish) {
   if (!value) {
-    return "Analyze";
+    return isSpanish ? "Analizar" : "Analyze";
   }
   return `MET ${Number(value).toFixed(1)}`;
 }
 
 export function RoutineListPage() {
+  const { isSpanish } = useLanguage();
   const [routines, setRoutines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [analyzingId, setAnalyzingId] = useState(null);
-
-  const loadRoutines = async () => {
-    try {
-      const data = await routineService.getRoutines();
-      setRoutines(normalizeListPayload(data));
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Could not load routines.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const copy = isSpanish
+    ? {
+        loadError: "No pudimos cargar las rutinas.",
+        analyzeSuccess: "MET de la rutina actualizado con Groq.",
+        analyzeError: "No pudimos analizar esta rutina.",
+        deleteConfirm: (name) => `¿Eliminar "${name}"? El historial de actividad seguirá guardado.`,
+        deleteSuccess: "Rutina eliminada.",
+        deleteError: "No pudimos eliminar la rutina.",
+        sectionTag: "Rutinas de gimnasio",
+        title: "Entrena con tu volumen real",
+        description:
+          "Guarda Push/Pull/Legs, Full Body o cualquier sesión personalizada y calcula calorías desde el tempo, el descanso y la intensidad de cada ejercicio.",
+        newRoutine: "Nueva rutina",
+        emptyTitle: "Todavía no hay rutinas",
+        emptyText: "Pega la rutina tal como la escribiste y NutriPost la estructura por ti.",
+        firstRoutine: "Crear tu primera rutina",
+        routine: "Rutina",
+        minutes: "min de trabajo",
+        exercises: "ejercicios",
+        estimatedCalories: "kcal estimadas por fórmula de ejercicios",
+        noMuscleMap: "Todavía no hay mapa muscular",
+        aiHint: "Analiza esta rutina para refrescar músculos, contexto MET y desglose calórico.",
+        open: "Abrir",
+        edit: "Editar",
+        analyzing: "Analizando...",
+        analyze: "Analizar",
+        delete: "Eliminar",
+      }
+    : {
+        loadError: "Could not load routines.",
+        analyzeSuccess: "Routine MET updated with Groq.",
+        analyzeError: "Could not analyze this routine.",
+        deleteConfirm: (name) => `Delete "${name}"? Activity history will stay saved.`,
+        deleteSuccess: "Routine deleted.",
+        deleteError: "Could not delete this routine.",
+        sectionTag: "Gym routines",
+        title: "Train with your real volume",
+        description:
+          "Save Push/Pull/Legs, Full Body or any custom session, then calculate calories from each exercise's tempo, rest, and intensity.",
+        newRoutine: "New Routine",
+        emptyTitle: "No routines yet",
+        emptyText: "Paste the routine exactly as you wrote it and NutriPost will structure it for you.",
+        firstRoutine: "Create your first routine",
+        routine: "Routine",
+        minutes: "min exercise time",
+        exercises: "exercises",
+        estimatedCalories: "kcal by exercise formula",
+        noMuscleMap: "No muscle map yet",
+        aiHint: "Analyze this routine to refresh muscles, MET context, and calorie breakdown.",
+        open: "Open",
+        edit: "Edit",
+        analyzing: "Analyzing...",
+        analyze: "Analyze",
+        delete: "Delete",
+      };
 
   useEffect(() => {
+    let active = true;
+
+    const loadRoutines = async () => {
+      try {
+        const data = await routineService.getRoutines();
+        if (active) {
+          setRoutines(normalizeListPayload(data));
+        }
+      } catch (error) {
+        if (active) {
+          toast.error(error.response?.data?.message || copy.loadError);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
     loadRoutines();
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [copy.loadError]);
 
   const handleAnalyze = async (routine) => {
     setAnalyzingId(routine.id);
@@ -45,16 +114,16 @@ export function RoutineListPage() {
       const data = await routineService.analyzeRoutine(routine.id);
       const updatedRoutine = data.routine;
       setRoutines((items) => items.map((item) => (item.id === routine.id ? updatedRoutine : item)));
-      toast.success("Routine MET updated with Groq.");
+      toast.success(copy.analyzeSuccess);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Could not analyze this routine.");
+      toast.error(error.response?.data?.message || copy.analyzeError);
     } finally {
       setAnalyzingId(null);
     }
   };
 
   const handleDelete = async (routine) => {
-    const confirmed = window.confirm(`Delete "${routine.name}"? Activity history will stay saved.`);
+    const confirmed = window.confirm(copy.deleteConfirm(routine.name));
     if (!confirmed) {
       return;
     }
@@ -62,9 +131,9 @@ export function RoutineListPage() {
     try {
       await routineService.deleteRoutine(routine.id);
       setRoutines((items) => items.filter((item) => item.id !== routine.id));
-      toast.success("Routine deleted.");
+      toast.success(copy.deleteSuccess);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Could not delete this routine.");
+      toast.error(error.response?.data?.message || copy.deleteError);
     }
   };
 
@@ -77,18 +146,16 @@ export function RoutineListPage() {
       <section className="glass-panel rounded-[32px] p-6">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-primary">Gym routines</p>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight">Train with your real volume</h1>
-            <p className="mt-3 max-w-2xl text-textMuted">
-              Save Push/Pull/Legs, Full Body or any custom session, then calculate calories from each exercise&apos;s tempo, rest, and intensity.
-            </p>
+            <p className="text-sm uppercase tracking-[0.24em] text-primary">{copy.sectionTag}</p>
+            <h1 className="mt-3 text-4xl font-bold tracking-tight">{copy.title}</h1>
+            <p className="mt-3 max-w-2xl text-textMuted">{copy.description}</p>
           </div>
           <Link
             to="/routines/new"
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 font-semibold text-background transition hover:bg-primary/90"
           >
             <Plus className="h-4 w-4" />
-            New Routine
+            {copy.newRoutine}
           </Link>
         </div>
       </section>
@@ -96,15 +163,13 @@ export function RoutineListPage() {
       {routines.length === 0 ? (
         <section className="glass-panel rounded-[32px] p-8 text-center">
           <Dumbbell className="mx-auto h-12 w-12 text-secondary" />
-          <h2 className="mt-4 text-2xl font-semibold">No routines yet</h2>
-          <p className="mx-auto mt-2 max-w-xl text-textMuted">
-            Paste the routine exactly as you wrote it and NutriPost will structure it for you.
-          </p>
+          <h2 className="mt-4 text-2xl font-semibold">{copy.emptyTitle}</h2>
+          <p className="mx-auto mt-2 max-w-xl text-textMuted">{copy.emptyText}</p>
           <Link
             to="/routines/new"
             className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 font-semibold text-background"
           >
-            Create your first routine
+            {copy.firstRoutine}
             <ArrowRight className="h-4 w-4" />
           </Link>
         </section>
@@ -124,19 +189,19 @@ export function RoutineListPage() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-secondary">Routine</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-secondary">{copy.routine}</p>
                   <h2 className="mt-2 text-2xl font-semibold">{routine.name}</h2>
                 </div>
                 <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
-                  {metLabel(routine.adjusted_met)}
+                  {metLabel(routine.adjusted_met, isSpanish)}
                 </span>
               </div>
 
               <p className="mt-4 text-sm text-textMuted">
-                {Math.round(routine.calculated_duration_minutes || routine.estimated_duration_minutes)} min exercise time • {routine.exercises.length} exercises
+                {Math.round(routine.calculated_duration_minutes || routine.estimated_duration_minutes)} {copy.minutes} • {routine.exercises.length} {copy.exercises}
               </p>
               {routine.estimated_calories ? (
-                <p className="mt-2 text-sm font-semibold text-accent">~{Math.round(routine.estimated_calories)} kcal by exercise formula</p>
+                <p className="mt-2 text-sm font-semibold text-accent">~{Math.round(routine.estimated_calories)} {copy.estimatedCalories}</p>
               ) : null}
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -146,14 +211,14 @@ export function RoutineListPage() {
                   </span>
                 ))}
                 {(routine.muscle_groups || []).length === 0 ? (
-                  <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-textMuted">No muscle map yet</span>
+                  <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-textMuted">{copy.noMuscleMap}</span>
                 ) : null}
               </div>
 
               {routine.ai_analysis ? (
                 <p className="mt-4 line-clamp-3 text-sm italic text-textMuted">{routine.ai_analysis}</p>
               ) : (
-                <p className="mt-4 text-sm text-textMuted">Analyze this routine to refresh muscles, MET context, and calorie breakdown.</p>
+                <p className="mt-4 text-sm text-textMuted">{copy.aiHint}</p>
               )}
 
               <div className="mt-5 flex flex-wrap gap-2">
@@ -161,14 +226,14 @@ export function RoutineListPage() {
                   to={`/routines/${routine.id}`}
                   className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-background"
                 >
-                  Open
+                  {copy.open}
                 </Link>
                 <Link
                   to={`/routines/${routine.id}/edit`}
                   className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-2 text-sm text-textMuted transition hover:text-textPrimary"
                 >
                   <Pencil className="h-4 w-4" />
-                  Edit
+                  {copy.edit}
                 </Link>
                 <button
                   onClick={() => handleAnalyze(routine)}
@@ -176,14 +241,14 @@ export function RoutineListPage() {
                   className="inline-flex items-center gap-2 rounded-2xl border border-secondary/30 px-4 py-2 text-sm text-secondary transition hover:bg-secondary/10 disabled:opacity-60"
                 >
                   <Sparkles className="h-4 w-4" />
-                  {analyzingId === routine.id ? "Analyzing..." : "Analyze"}
+                  {analyzingId === routine.id ? copy.analyzing : copy.analyze}
                 </button>
                 <button
                   onClick={() => handleDelete(routine)}
                   className="inline-flex items-center gap-2 rounded-2xl border border-red-400/20 px-4 py-2 text-sm text-red-300 transition hover:bg-red-400/10"
                 >
                   <Trash2 className="h-4 w-4" />
-                  Delete
+                  {copy.delete}
                 </button>
               </div>
             </motion.article>

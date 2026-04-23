@@ -19,8 +19,8 @@ from .services import (
     ensure_daily_goal,
     get_or_create_meal_recommendation,
     parse_meal_from_text,
-    search_open_food_facts,
 )
+from .catalog import search_food_catalog
 
 
 class MealRecommendationViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -46,14 +46,14 @@ class FoodSearchViewSet(viewsets.GenericViewSet):
         category = request.query_params.get("category", "balanced").strip() or "balanced"
         if not query:
             return Response([])
-        return Response(search_open_food_facts(query=query, preference=category, limit=12))
+        return Response(search_food_catalog(query=query, preference=category, limit=12))
 
 
 class FoodLogViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = FoodLogSerializer
     filterset_class = FoodLogFilter
-    search_fields = ("food_name", "open_food_facts_id")
+    search_fields = ("food_name", "open_food_facts_id", "source_item_id")
     ordering_fields = ("logged_at", "calories", "protein_g")
     ordering = ("-logged_at",)
 

@@ -15,6 +15,8 @@ env = environ.Env(
     CSRF_TRUSTED_ORIGINS=(list, ["http://127.0.0.1:5173", "http://localhost:5173"]),
     FRONTEND_URL=(str, ""),
     OFF_API_BASE_URL=(str, "https://world.openfoodfacts.org"),
+    USDA_API_KEY=(str, ""),
+    USDA_API_BASE_URL=(str, "https://api.nal.usda.gov/fdc/v1"),
     GROQ_API_KEY=(str, ""),
     GROQ_API_BASE_URL=(str, "https://api.groq.com/openai/v1"),
     GROQ_MODEL_NAME=(str, "llama-3.3-70b-versatile"),
@@ -57,7 +59,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -104,11 +105,6 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BACKEND_DIR / "staticfiles"
-STORAGES = {
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    }
-}
 MEDIA_URL = "media/"
 MEDIA_ROOT = BACKEND_DIR / "media"
 
@@ -150,6 +146,8 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[]) or default_frontend_origins
 
 OPEN_FOOD_FACTS_BASE_URL = env("OFF_API_BASE_URL")
+USDA_API_KEY = env("USDA_API_KEY", default="")
+USDA_API_BASE_URL = env("USDA_API_BASE_URL", default="https://api.nal.usda.gov/fdc/v1")
 GROQ_API_KEY = env("GROQ_API_KEY", default="")
 GROQ_API_BASE_URL = env("GROQ_API_BASE_URL", default="https://api.groq.com/openai/v1")
 GROQ_MODEL_NAME = env("GROQ_MODEL_NAME", default="llama-3.3-70b-versatile")

@@ -1,6 +1,9 @@
 import { motion } from "framer-motion";
 
+import { useLanguage } from "../hooks/useLanguage";
+
 export function MacroRing({ label, value, goal, color }) {
+  const { isSpanish } = useLanguage();
   const radius = 48;
   const circumference = 2 * Math.PI * radius;
   const percentage = Math.min((value / Math.max(goal, 1)) * 100, 100);
@@ -38,7 +41,9 @@ export function MacroRing({ label, value, goal, color }) {
         </svg>
         <div className="absolute text-center">
           <p className="text-2xl font-bold">{Math.round(value)}g</p>
-          <p className="text-xs text-textMuted">Goal {Math.round(goal)}g</p>
+          <p className="text-xs text-textMuted">
+            {isSpanish ? "Objetivo" : "Goal"} {Math.round(goal)}g
+          </p>
         </div>
       </div>
       <p className="mt-3 text-sm font-medium text-textMuted">{label}</p>

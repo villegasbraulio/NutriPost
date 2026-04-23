@@ -7,7 +7,9 @@ import toast from "react-hot-toast";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
+import { LanguageSelector } from "../components/LanguageSelector";
 import { useAuth } from "../hooks/useAuth";
+import { useLanguage } from "../hooks/useLanguage";
 
 const loginSchema = z.object({
   username: z.string().min(3, "Username is required"),
@@ -18,6 +20,32 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, loading, user } = useAuth();
+  const { isSpanish } = useLanguage();
+  const copy = isSpanish
+    ? {
+        title: "Ingresa a tu panel de recuperacion",
+        username: "Usuario",
+        password: "Contrasena",
+        button: "Ingresar",
+        loading: "Ingresando...",
+        loginLoading: "Ingresando...",
+        loginSuccess: "Bienvenido otra vez.",
+        loginError: "No pudimos iniciar sesion.",
+        createPrefix: "No tienes cuenta?",
+        createLink: "Crear una cuenta",
+      }
+    : {
+        title: "Sign in to your recovery dashboard",
+        username: "Username",
+        password: "Password",
+        button: "Sign In",
+        loading: "Signing in...",
+        loginLoading: "Logging you in...",
+        loginSuccess: "Welcome back.",
+        loginError: "Login failed.",
+        createPrefix: "New here?",
+        createLink: "Create an account",
+      };
   const {
     register,
     handleSubmit,
@@ -36,9 +64,9 @@ export function LoginPage() {
   const onSubmit = async (values) => {
     const redirectPath = location.state?.from?.pathname || "/dashboard";
     await toast.promise(login(values), {
-      loading: "Logging you in...",
-      success: "Welcome back.",
-      error: (error) => error.response?.data?.message || "Login failed.",
+      loading: copy.loginLoading,
+      success: copy.loginSuccess,
+      error: (error) => error.response?.data?.message || copy.loginError,
     });
     navigate(redirectPath, { replace: true });
   };
@@ -50,14 +78,17 @@ export function LoginPage() {
         animate={{ opacity: 1, y: 0 }}
         className="glass-panel w-full max-w-md rounded-[32px] p-8"
       >
+        <div className="mb-6 flex justify-end">
+          <LanguageSelector compact />
+        </div>
         <div className="mb-8">
           <p className="text-sm uppercase tracking-[0.24em] text-primary">NutriPost</p>
-          <h1 className="mt-4 text-3xl font-bold tracking-tight">Sign in to your recovery dashboard</h1>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight">{copy.title}</h1>
         </div>
 
         <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
           <div>
-            <label className="mb-2 block text-sm text-textMuted">Username</label>
+            <label className="mb-2 block text-sm text-textMuted">{copy.username}</label>
             <input
               {...register("username")}
               className="focus-ring w-full rounded-2xl border border-white/10 bg-background/60 px-4 py-3 text-textPrimary placeholder:text-textMuted"
@@ -66,7 +97,7 @@ export function LoginPage() {
             {errors.username ? <p className="mt-2 text-sm text-rose-400">{errors.username.message}</p> : null}
           </div>
           <div>
-            <label className="mb-2 block text-sm text-textMuted">Password</label>
+            <label className="mb-2 block text-sm text-textMuted">{copy.password}</label>
             <input
               type="password"
               {...register("password")}
@@ -81,14 +112,14 @@ export function LoginPage() {
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 font-semibold text-background transition hover:bg-primary/90 disabled:opacity-60"
           >
             <LogIn className="h-4 w-4" />
-            {isSubmitting ? "Signing in..." : "Sign In"}
+            {isSubmitting ? copy.loading : copy.button}
           </button>
         </form>
 
         <p className="mt-6 text-sm text-textMuted">
-          New here?{" "}
+          {copy.createPrefix}{" "}
           <Link className="font-semibold text-primary" to="/auth/register">
-            Create an account
+            {copy.createLink}
           </Link>
         </p>
       </motion.div>

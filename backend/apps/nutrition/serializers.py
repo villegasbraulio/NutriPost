@@ -43,12 +43,18 @@ class MealRecommendationSerializer(serializers.ModelSerializer):
 
 
 class FoodLogSerializer(serializers.ModelSerializer):
+    nutrition_source_label = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = FoodLog
         fields = (
             "id",
             "food_name",
             "open_food_facts_id",
+            "nutrition_source",
+            "nutrition_source_label",
+            "source_item_id",
+            "source_metadata",
             "calories",
             "protein_g",
             "carbs_g",
@@ -58,6 +64,26 @@ class FoodLogSerializer(serializers.ModelSerializer):
             "logged_at",
         )
         read_only_fields = ("id",)
+
+    def validate(self, attrs):
+        nutrition_source = attrs.get("nutrition_source") or FoodLog.NutritionSource.MANUAL
+        source_metadata = attrs.get("source_metadata") or {}
+        if not isinstance(source_metadata, dict):
+            source_metadata = {}
+        source_item_id = str(attrs.get("source_item_id") or attrs.get("open_food_facts_id") or "").strip()
+        legacy_source_id = str(attrs.get("open_food_facts_id") or source_item_id).strip()
+        if not legacy_source_id:
+            fallback_reference = source_metadata.get("search_query") or attrs.get("food_name") or "food-log"
+            legacy_source_id = f"{nutrition_source}:{fallback_reference}".strip()
+
+        attrs["nutrition_source"] = nutrition_source
+        attrs["source_item_id"] = source_item_id[:120]
+        attrs["open_food_facts_id"] = legacy_source_id[:100]
+        attrs["source_metadata"] = source_metadata
+        return attrs
+
+    def get_nutrition_source_label(self, obj: FoodLog) -> str:
+        return obj.get_nutrition_source_display()
 
 
 class ParseMealSerializer(serializers.Serializer):
@@ -78,7 +104,15 @@ class ParsedMealItemSerializer(serializers.Serializer):
     carbs_g = serializers.FloatField()
     fat_g = serializers.FloatField()
     confidence = serializers.ChoiceField(choices=("high", "medium", "low"))
-    open_food_facts_query = serializers.CharField()
+    food_type = serializers.ChoiceField(choices=("base_food", "packaged_product", "mixed_dish"))
+    search_query = serializers.CharField()
+    nutrition_source = serializers.ChoiceField(choices=FoodLog.NutritionSource.choices)
+    nutrition_source_label = serializers.CharField()
+    source_item_id = serializers.CharField(allow_blank=True)
+    source_name = serializers.CharField(allow_blank=True)
+    source_brand = serializers.CharField(allow_blank=True, required=False)
+    match_confidence = serializers.ChoiceField(choices=("high", "medium", "low"))
+    source_metadata = serializers.JSONField(required=False)
 
 
 class ParsedMealResponseSerializer(serializers.Serializer):

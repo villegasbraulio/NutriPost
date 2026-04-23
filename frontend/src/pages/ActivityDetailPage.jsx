@@ -7,16 +7,47 @@ import { FoodRecommendationCard } from "../components/FoodRecommendationCard";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { MacroRing } from "../components/MacroRing";
 import { RecoveryWindowTimer } from "../components/RecoveryWindowTimer";
+import { useLanguage } from "../hooks/useLanguage";
 import { activityService } from "../services/activityService";
 import { nutritionService } from "../services/nutritionService";
 import { formatDateTime } from "../utils/date";
 
 export function ActivityDetailPage() {
+  const { isSpanish } = useLanguage();
   const { id } = useParams();
   const navigate = useNavigate();
   const [activityLog, setActivityLog] = useState(null);
   const [loading, setLoading] = useState(true);
   const notifiedActivityRef = useRef(null);
+  const copy = isSpanish
+    ? {
+        loadError: "No pudimos cargar esta actividad.",
+        eatSoon: "⏱ Come tu comida post-entreno pronto.",
+        windowPassed: "La ventana paso, pero igual conviene tu comida de recuperacion.",
+        sectionTag: "Detalle de actividad",
+        routine: "Rutina",
+        caloriesBurned: "Calorias gastadas",
+        proteinTarget: "Objetivo de proteina",
+        carbTarget: "Objetivo de carbohidratos",
+        fatCeiling: "Tope de grasas",
+        foodsTitle: "Alimentos recomendados",
+        foodsText: "Ajustados a tus objetivos de recuperacion usando Open Food Facts.",
+        logFoods: "Cargar estas comidas",
+      }
+    : {
+        loadError: "Could not load this activity.",
+        eatSoon: "⏱ Eat your post-workout meal soon!",
+        windowPassed: "Window passed — still eat your recovery meal!",
+        sectionTag: "Activity detail",
+        routine: "Routine",
+        caloriesBurned: "Calories burned",
+        proteinTarget: "Protein target",
+        carbTarget: "Carb target",
+        fatCeiling: "Fat ceiling",
+        foodsTitle: "Recommended foods",
+        foodsText: "Matched to your recovery targets using Open Food Facts.",
+        logFoods: "Log these foods",
+      };
 
   useEffect(() => {
     let active = true;
@@ -27,7 +58,7 @@ export function ActivityDetailPage() {
           setActivityLog(data.recommendation ? data : { ...data, recommendation: await nutritionService.getRecommendation(id) });
         }
       } catch (error) {
-        toast.error(error.response?.data?.message || "Could not load this activity.");
+        toast.error(error.response?.data?.message || copy.loadError);
       } finally {
         if (active) {
           setLoading(false);
@@ -39,7 +70,7 @@ export function ActivityDetailPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, copy.loadError]);
 
   useEffect(() => {
     if (!activityLog || notifiedActivityRef.current === activityLog.id) {
@@ -48,14 +79,14 @@ export function ActivityDetailPage() {
 
     const expiresAt = new Date(activityLog.timing_expires_at).getTime();
     if (Date.now() < expiresAt) {
-      toast("⏱ Eat your post-workout meal soon!", { id: `recovery-window-${activityLog.id}` });
+      toast(copy.eatSoon, { id: `recovery-window-${activityLog.id}` });
     } else {
-      toast("Window passed — still eat your recovery meal!", {
+      toast(copy.windowPassed, {
         id: `recovery-window-${activityLog.id}`,
       });
     }
     notifiedActivityRef.current = activityLog.id;
-  }, [activityLog]);
+  }, [activityLog, copy.eatSoon, copy.windowPassed]);
 
   if (loading || !activityLog) {
     return <LoadingSkeleton className="h-[640px] rounded-[32px]" />;
@@ -68,10 +99,10 @@ export function ActivityDetailPage() {
       <section className="glass-panel rounded-[32px] p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-primary">Activity detail</p>
+            <p className="text-sm uppercase tracking-[0.24em] text-primary">{copy.sectionTag}</p>
             <h1 className="mt-3 text-4xl font-bold tracking-tight">{activityLog.activity_type.name}</h1>
             <p className="mt-3 text-textMuted">
-              {activityLog.duration_minutes} minutes • {formatDateTime(activityLog.logged_at)}
+              {activityLog.duration_minutes} {isSpanish ? "minutos" : "minutes"} • {formatDateTime(activityLog.logged_at)}
             </p>
             {activityLog.notes ? <p className="mt-4 max-w-2xl text-textMuted">{activityLog.notes}</p> : null}
             {activityLog.gym_routine ? (
@@ -80,14 +111,14 @@ export function ActivityDetailPage() {
                 className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-secondary/30 px-4 py-2 text-sm font-semibold text-secondary"
               >
                 <Dumbbell className="h-4 w-4" />
-                Routine: {activityLog.gym_routine.name}
+                {copy.routine}: {activityLog.gym_routine.name}
               </button>
             ) : null}
           </div>
           <div className="rounded-3xl bg-primary/10 px-5 py-4">
             <div className="flex items-center gap-2 text-primary">
               <Flame className="h-5 w-5" />
-              <span className="text-sm">Calories burned</span>
+              <span className="text-sm">{copy.caloriesBurned}</span>
             </div>
             <p className="mt-3 text-4xl font-bold">{Math.round(activityLog.calories_burned)} kcal</p>
           </div>
@@ -101,25 +132,23 @@ export function ActivityDetailPage() {
       />
 
       <section className="grid gap-4 lg:grid-cols-3">
-        <MacroRing label="Protein target" value={Number(recommendation.protein_target_g)} goal={Number(recommendation.protein_target_g)} color="#10B981" />
-        <MacroRing label="Carb target" value={Number(recommendation.carbs_target_g)} goal={Number(recommendation.carbs_target_g)} color="#6366F1" />
-        <MacroRing label="Fat ceiling" value={Number(recommendation.fat_target_g)} goal={10} color="#F59E0B" />
+        <MacroRing label={copy.proteinTarget} value={Number(recommendation.protein_target_g)} goal={Number(recommendation.protein_target_g)} color="#10B981" />
+        <MacroRing label={copy.carbTarget} value={Number(recommendation.carbs_target_g)} goal={Number(recommendation.carbs_target_g)} color="#6366F1" />
+        <MacroRing label={copy.fatCeiling} value={Number(recommendation.fat_target_g)} goal={10} color="#F59E0B" />
       </section>
 
       <section className="glass-panel rounded-[32px] p-6">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold">Recommended foods</h2>
-            <p className="text-sm text-textMuted">
-              Matched to your recovery targets using Open Food Facts.
-            </p>
+            <h2 className="text-2xl font-semibold">{copy.foodsTitle}</h2>
+            <p className="text-sm text-textMuted">{copy.foodsText}</p>
           </div>
           <button
             onClick={() => navigate("/nutrition/log", { state: { prefillFoods: recommendation.recommended_foods } })}
             className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 font-semibold text-background"
           >
             <UtensilsCrossed className="h-4 w-4" />
-            Log these foods
+            {copy.logFoods}
           </button>
         </div>
 

@@ -7,7 +7,9 @@ import toast from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
+import { LanguageSelector } from "../components/LanguageSelector";
 import { useAuth } from "../hooks/useAuth";
+import { useLanguage } from "../hooks/useLanguage";
 
 const registerSchema = z.object({
   username: z.string().min(3),
@@ -26,6 +28,66 @@ const registerSchema = z.object({
 export function RegisterPage() {
   const navigate = useNavigate();
   const { register: registerUser, loading, user } = useAuth();
+  const { isSpanish } = useLanguage();
+  const copy = isSpanish
+    ? {
+        title: "Crea tu perfil de rendimiento",
+        username: "Usuario",
+        email: "Email",
+        password: "Contrasena",
+        firstName: "Nombre",
+        lastName: "Apellido",
+        weight: "Peso (kg)",
+        height: "Altura (cm)",
+        age: "Edad",
+        gender: "Genero",
+        genderMale: "Masculino",
+        genderFemale: "Femenino",
+        genderOther: "Otro",
+        activityLevel: "Nivel de actividad",
+        activitySedentary: "Sedentario",
+        activityLight: "Ligero",
+        activityModerate: "Moderado",
+        activityActive: "Activo",
+        activityVeryActive: "Muy activo",
+        goal: "Objetivo",
+        create: "Crear cuenta",
+        creating: "Creando cuenta...",
+        registerLoading: "Creando tu perfil de NutriPost...",
+        registerSuccess: "Cuenta creada.",
+        registerError: "No pudimos completar el registro.",
+        loginPrefix: "Ya tienes cuenta?",
+        loginLink: "Ingresar",
+      }
+    : {
+        title: "Create your performance profile",
+        username: "Username",
+        email: "Email",
+        password: "Password",
+        firstName: "First name",
+        lastName: "Last name",
+        weight: "Weight (kg)",
+        height: "Height (cm)",
+        age: "Age",
+        gender: "Gender",
+        genderMale: "Male",
+        genderFemale: "Female",
+        genderOther: "Other",
+        activityLevel: "Activity level",
+        activitySedentary: "Sedentary",
+        activityLight: "Light",
+        activityModerate: "Moderate",
+        activityActive: "Active",
+        activityVeryActive: "Very active",
+        goal: "Goal",
+        create: "Create Account",
+        creating: "Creating account...",
+        registerLoading: "Creating your NutriPost profile...",
+        registerSuccess: "Account created.",
+        registerError: "Registration failed.",
+        loginPrefix: "Already have an account?",
+        loginLink: "Sign in",
+      };
   const {
     register,
     handleSubmit,
@@ -55,9 +117,9 @@ export function RegisterPage() {
 
   const onSubmit = async (values) => {
     await toast.promise(registerUser(values), {
-      loading: "Creating your NutriPost profile...",
-      success: "Account created.",
-      error: (error) => error.response?.data?.message || "Registration failed.",
+      loading: copy.registerLoading,
+      success: copy.registerSuccess,
+      error: (error) => error.response?.data?.message || copy.registerError,
     });
     navigate("/dashboard", { replace: true });
   };
@@ -69,21 +131,24 @@ export function RegisterPage() {
         animate={{ opacity: 1, y: 0 }}
         className="glass-panel w-full max-w-3xl rounded-[32px] p-8"
       >
+        <div className="mb-6 flex justify-end">
+          <LanguageSelector compact />
+        </div>
         <div className="mb-8">
           <p className="text-sm uppercase tracking-[0.24em] text-primary">NutriPost</p>
-          <h1 className="mt-4 text-3xl font-bold tracking-tight">Create your performance profile</h1>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight">{copy.title}</h1>
         </div>
 
         <form className="grid gap-5 sm:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
           {[
-            ["username", "Username", "text"],
-            ["email", "Email", "email"],
-            ["password", "Password", "password"],
-            ["first_name", "First name", "text"],
-            ["last_name", "Last name", "text"],
-            ["weight_kg", "Weight (kg)", "number"],
-            ["height_cm", "Height (cm)", "number"],
-            ["age", "Age", "number"],
+            ["username", copy.username, "text"],
+            ["email", copy.email, "email"],
+            ["password", copy.password, "password"],
+            ["first_name", copy.firstName, "text"],
+            ["last_name", copy.lastName, "text"],
+            ["weight_kg", copy.weight, "number"],
+            ["height_cm", copy.height, "number"],
+            ["age", copy.age, "number"],
           ].map(([name, label, type]) => (
             <div key={name} className={name === "password" ? "sm:col-span-2" : ""}>
               <label className="mb-2 block text-sm text-textMuted">{label}</label>
@@ -98,30 +163,30 @@ export function RegisterPage() {
           ))}
 
           <div>
-            <label className="mb-2 block text-sm text-textMuted">Gender</label>
+            <label className="mb-2 block text-sm text-textMuted">{copy.gender}</label>
             <select {...register("gender")} className="focus-ring w-full rounded-2xl border border-white/10 bg-background/60 px-4 py-3">
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
+              <option value="male">{copy.genderMale}</option>
+              <option value="female">{copy.genderFemale}</option>
+              <option value="other">{copy.genderOther}</option>
             </select>
           </div>
           <div>
-            <label className="mb-2 block text-sm text-textMuted">Activity level</label>
+            <label className="mb-2 block text-sm text-textMuted">{copy.activityLevel}</label>
             <select {...register("activity_level")} className="focus-ring w-full rounded-2xl border border-white/10 bg-background/60 px-4 py-3">
-              <option value="sedentary">Sedentary</option>
-              <option value="light">Light</option>
-              <option value="moderate">Moderate</option>
-              <option value="active">Active</option>
-              <option value="very_active">Very active</option>
+              <option value="sedentary">{copy.activitySedentary}</option>
+              <option value="light">{copy.activityLight}</option>
+              <option value="moderate">{copy.activityModerate}</option>
+              <option value="active">{copy.activityActive}</option>
+              <option value="very_active">{copy.activityVeryActive}</option>
             </select>
           </div>
           <div className="sm:col-span-2">
-            <label className="mb-2 block text-sm text-textMuted">Goal</label>
+            <label className="mb-2 block text-sm text-textMuted">{copy.goal}</label>
             <select {...register("goal")} className="focus-ring w-full rounded-2xl border border-white/10 bg-background/60 px-4 py-3">
-              <option value="lose">Perder peso</option>
-              <option value="reduce_fat">Disminuir grasa</option>
-              <option value="maintain">Mantenimiento</option>
-              <option value="gain">Ganar masa muscular</option>
+              <option value="lose">{isSpanish ? "Perder peso" : "Lose weight"}</option>
+              <option value="reduce_fat">{isSpanish ? "Disminuir grasa" : "Reduce fat"}</option>
+              <option value="maintain">{isSpanish ? "Mantenimiento" : "Maintain"}</option>
+              <option value="gain">{isSpanish ? "Ganar masa muscular" : "Gain muscle"}</option>
             </select>
           </div>
 
@@ -131,14 +196,14 @@ export function RegisterPage() {
             className="flex items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 font-semibold text-background transition hover:bg-primary/90 disabled:opacity-60 sm:col-span-2"
           >
             <UserPlus className="h-4 w-4" />
-            {isSubmitting ? "Creating account..." : "Create Account"}
+            {isSubmitting ? copy.creating : copy.create}
           </button>
         </form>
 
         <p className="mt-6 text-sm text-textMuted">
-          Already have an account?{" "}
+          {copy.loginPrefix}{" "}
           <Link className="font-semibold text-primary" to="/auth/login">
-            Sign in
+            {copy.loginLink}
           </Link>
         </p>
       </motion.div>

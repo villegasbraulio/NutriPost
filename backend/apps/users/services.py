@@ -1,8 +1,10 @@
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
+from time import sleep
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
+from django.db.utils import OperationalError
 from django.utils import timezone
 from rest_framework.response import Response
 
@@ -93,6 +95,33 @@ def calculate_daily_goal_targets(user: User) -> dict[str, float]:
     }
 
 
+DAILY_GOAL_LOCK_RETRIES = 3
+DAILY_GOAL_LOCK_RETRY_DELAYS = (0.05, 0.1, 0.2)
+
+
+def get_existing_daily_goal(user: User, target_date: date):
+    """Fetch an existing DailyGoal with short retries for transient SQLite table locks."""
+    from apps.nutrition.models import DailyGoal
+
+    last_lock_error = None
+
+    for attempt in range(DAILY_GOAL_LOCK_RETRIES):
+        try:
+            return DailyGoal.objects.filter(user=user, date=target_date).first()
+        except OperationalError as exc:
+            if "database is locked" not in str(exc).lower() and "database table is locked" not in str(exc).lower():
+                raise
+
+            last_lock_error = exc
+            if attempt < DAILY_GOAL_LOCK_RETRIES - 1:
+                sleep(DAILY_GOAL_LOCK_RETRY_DELAYS[attempt])
+
+    if last_lock_error is not None:
+        raise last_lock_error
+
+    return None
+
+
 def sync_daily_goal(user: User, target_date: date):
     """Persist a DailyGoal row using the latest TDEE-derived calorie and macro targets."""
     from apps.nutrition.models import DailyGoal
@@ -105,17 +134,36 @@ def sync_daily_goal(user: User, target_date: date):
         "fat_goal_g": Decimal(str(targets["fat_goal_g"])),
     }
 
-    try:
-        with transaction.atomic():
-            daily_goal, _ = DailyGoal.objects.update_or_create(
-                user=user,
-                date=target_date,
-                defaults=defaults,
-            )
-            return daily_goal
-    except IntegrityError:
-        DailyGoal.objects.filter(user=user, date=target_date).update(**defaults)
-        return DailyGoal.objects.get(user=user, date=target_date)
+    last_lock_error = None
+
+    for attempt in range(DAILY_GOAL_LOCK_RETRIES):
+        try:
+            with transaction.atomic():
+                daily_goal, _ = DailyGoal.objects.update_or_create(
+                    user=user,
+                    date=target_date,
+                    defaults=defaults,
+                )
+                return daily_goal
+        except IntegrityError:
+            DailyGoal.objects.filter(user=user, date=target_date).update(**defaults)
+            return DailyGoal.objects.get(user=user, date=target_date)
+        except OperationalError as exc:
+            if "database is locked" not in str(exc).lower() and "database table is locked" not in str(exc).lower():
+                raise
+
+            last_lock_error = exc
+            existing_goal = get_existing_daily_goal(user, target_date)
+            if existing_goal is not None:
+                return existing_goal
+
+            if attempt < DAILY_GOAL_LOCK_RETRIES - 1:
+                sleep(DAILY_GOAL_LOCK_RETRY_DELAYS[attempt])
+
+    if last_lock_error is not None:
+        raise last_lock_error
+
+    raise RuntimeError("Daily goal sync failed without returning a result.")
 
 
 def sync_current_week_daily_goals(user: User, reference_date: date | None = None) -> None:

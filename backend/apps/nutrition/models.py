@@ -33,6 +33,12 @@ class FoodLog(models.Model):
         SNACK = "snack", "Snack"
         POST_WORKOUT = "post_workout", "Post Workout"
 
+    class NutritionSource(models.TextChoices):
+        USDA = "usda", "USDA"
+        OPEN_FOOD_FACTS = "open_food_facts", "Open Food Facts"
+        AI = "ai", "AI estimate"
+        MANUAL = "manual", "Manual entry"
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -41,6 +47,13 @@ class FoodLog(models.Model):
     )
     food_name = models.CharField(max_length=255)
     open_food_facts_id = models.CharField(max_length=100)
+    nutrition_source = models.CharField(
+        max_length=20,
+        choices=NutritionSource.choices,
+        default=NutritionSource.MANUAL,
+    )
+    source_item_id = models.CharField(max_length=120, blank=True, default="")
+    source_metadata = models.JSONField(default=dict, blank=True)
     calories = models.DecimalField(max_digits=8, decimal_places=2)
     protein_g = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal("0.00"))
     carbs_g = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal("0.00"))
@@ -54,6 +67,7 @@ class FoodLog(models.Model):
         indexes = [
             models.Index(fields=("user", "logged_at")),
             models.Index(fields=("user", "meal_type")),
+            models.Index(fields=("user", "nutrition_source")),
         ]
 
     def __str__(self) -> str:

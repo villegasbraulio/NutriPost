@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 
+import { useLanguage } from "../hooks/useLanguage";
 import { getActivityIcon } from "../utils/iconMap";
 
 export function ActivityTypePicker({
@@ -9,6 +10,7 @@ export function ActivityTypePicker({
   onQueryChange,
   onSelect,
 }) {
+  const { isSpanish } = useLanguage();
   const filtered = activityTypes.filter((item) => {
     const haystack = `${item.name} ${item.category}`.toLowerCase();
     return haystack.includes(query.toLowerCase());
@@ -22,10 +24,10 @@ export function ActivityTypePicker({
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           className="w-full bg-transparent text-sm text-textPrimary placeholder:text-textMuted focus:outline-none"
-          placeholder="Search running, yoga, boxing..."
+          placeholder={isSpanish ? "Busca running, yoga, boxeo..." : "Search running, yoga, boxing..."}
         />
       </label>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 min-[440px]:grid-cols-2 sm:grid-cols-3">
         {filtered.map((item) => {
           const Icon = getActivityIcon(item.icon_name);
           const selected = selectedId === item.id;
@@ -40,7 +42,7 @@ export function ActivityTypePicker({
               }`}
             >
               <Icon className="h-6 w-6 text-secondary" />
-              <p className="mt-4 font-semibold">{item.name}</p>
+              <p className="mt-4 break-words font-semibold">{item.name}</p>
               <p className="text-sm capitalize text-textMuted">{item.category}</p>
               <p className="mt-2 text-xs text-accent">MET {item.met_value}</p>
             </button>

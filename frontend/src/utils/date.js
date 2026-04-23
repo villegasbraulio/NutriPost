@@ -1,5 +1,17 @@
+function getLocale() {
+  if (typeof document !== "undefined" && document.documentElement.lang) {
+    return document.documentElement.lang === "es" ? "es-AR" : "en-US";
+  }
+
+  if (typeof navigator !== "undefined" && navigator.language) {
+    return navigator.language.toLowerCase().startsWith("es") ? "es-AR" : "en-US";
+  }
+
+  return "en-US";
+}
+
 export function formatDateLabel(value, options = {}) {
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(getLocale(), {
     month: "short",
     day: "numeric",
     ...options,
@@ -12,7 +24,7 @@ export function getLocalDateString(date = new Date()) {
 }
 
 export function formatDateTime(value) {
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(getLocale(), {
     month: "short",
     day: "numeric",
     hour: "numeric",

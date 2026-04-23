@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { AlarmClock, CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { useLanguage } from "../hooks/useLanguage";
+
 function calculateRemainingMs(loggedAt, timingWindowMinutes, timingExpiresAt) {
   const loggedTime = new Date(loggedAt).getTime();
   const expiresAt = timingExpiresAt
@@ -10,7 +12,7 @@ function calculateRemainingMs(loggedAt, timingWindowMinutes, timingExpiresAt) {
   return Math.max(expiresAt - Date.now(), 0);
 }
 
-function getTimingTone(remainingMs) {
+function getTimingTone(remainingMs, isSpanish) {
   const remainingMinutes = remainingMs / 60000;
 
   if (remainingMs <= 0) {
@@ -18,8 +20,10 @@ function getTimingTone(remainingMs) {
       ring: "#94A3B8",
       text: "text-textMuted",
       badge: "bg-white/5 text-textMuted",
-      label: "Window passed",
-      message: "Window passed — still eat your recovery meal!",
+      label: isSpanish ? "Ventana terminada" : "Window passed",
+      message: isSpanish
+        ? "La ventana paso, pero igual conviene hacer tu comida de recuperacion."
+        : "Window passed — still eat your recovery meal!",
     };
   }
 
@@ -28,8 +32,8 @@ function getTimingTone(remainingMs) {
       ring: "#10B981",
       text: "text-primary",
       badge: "bg-primary/10 text-primary",
-      label: "Recovery window open",
-      message: "Great timing for protein and carbs.",
+      label: isSpanish ? "Ventana abierta" : "Recovery window open",
+      message: isSpanish ? "Excelente momento para proteina y carbohidratos." : "Great timing for protein and carbs.",
     };
   }
 
@@ -38,8 +42,10 @@ function getTimingTone(remainingMs) {
       ring: "#F59E0B",
       text: "text-accent",
       badge: "bg-accent/10 text-accent",
-      label: "Recovery window narrowing",
-      message: "Aim to eat soon while glycogen replacement is still timely.",
+      label: isSpanish ? "Ventana acortandose" : "Recovery window narrowing",
+      message: isSpanish
+        ? "Intenta comer pronto mientras sigue siendo un buen momento para reponer glucogeno."
+        : "Aim to eat soon while glycogen replacement is still timely.",
     };
   }
 
@@ -47,8 +53,8 @@ function getTimingTone(remainingMs) {
     ring: "#F43F5E",
     text: "text-rose-400",
     badge: "bg-rose-500/10 text-rose-300",
-    label: "Last minutes",
-    message: "A recovery meal now is still worth it.",
+    label: isSpanish ? "Ultimos minutos" : "Last minutes",
+    message: isSpanish ? "Una comida de recuperacion ahora sigue valiendo la pena." : "A recovery meal now is still worth it.",
   };
 }
 
@@ -57,6 +63,7 @@ export function RecoveryWindowTimer({
   timingWindowMinutes = 60,
   timingExpiresAt,
 }) {
+  const { isSpanish, locale } = useLanguage();
   const [remainingMs, setRemainingMs] = useState(() =>
     calculateRemainingMs(loggedAt, timingWindowMinutes, timingExpiresAt),
   );
@@ -78,7 +85,7 @@ export function RecoveryWindowTimer({
   const strokeDashoffset = circumference * (1 - remainingRatio);
   const minutes = Math.floor(remainingMs / 60000);
   const seconds = Math.floor((remainingMs % 60000) / 1000);
-  const tone = getTimingTone(remainingMs);
+  const tone = getTimingTone(remainingMs, isSpanish);
 
   return (
     <div className="glass-panel rounded-[32px] p-6">
@@ -113,7 +120,7 @@ export function RecoveryWindowTimer({
                 {String(seconds).padStart(2, "0")}
               </p>
               <p className="text-xs uppercase tracking-[0.22em] text-textMuted">
-                Remaining
+                {isSpanish ? "Restante" : "Remaining"}
               </p>
             </div>
           </div>
@@ -129,16 +136,20 @@ export function RecoveryWindowTimer({
             {tone.label}
           </div>
           <div>
-            <h2 className="text-2xl font-semibold">Anabolic window countdown</h2>
+            <h2 className="text-2xl font-semibold">
+              {isSpanish ? "Cuenta regresiva de la ventana anabolica" : "Anabolic window countdown"}
+            </h2>
             <p className="mt-2 text-textMuted">
-              Recovery nutrition still matters even if you miss the first hour. This timer is a
-              supportive prompt, not a hard cutoff.
+              {isSpanish
+                ? "La nutricion de recuperacion sigue importando aunque no llegues dentro de la primera hora. Este temporizador es una guia, no un limite rigido."
+                : "Recovery nutrition still matters even if you miss the first hour. This timer is a supportive prompt, not a hard cutoff."}
             </p>
           </div>
           <div className={`rounded-3xl border border-white/10 bg-background/50 p-4 ${tone.text}`}>
             <p className="font-semibold">{tone.message}</p>
             <p className="mt-2 text-sm text-textMuted">
-              Logged at {new Intl.DateTimeFormat("en-US", {
+              {isSpanish ? "Registrado a las" : "Logged at"}{" "}
+              {new Intl.DateTimeFormat(locale, {
                 hour: "numeric",
                 minute: "2-digit",
                 month: "short",

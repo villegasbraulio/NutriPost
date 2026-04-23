@@ -17,9 +17,9 @@ class MealRecommendationAdmin(admin.ModelAdmin):
 
 @admin.register(FoodLog)
 class FoodLogAdmin(admin.ModelAdmin):
-    list_display = ("user", "food_name", "meal_type", "quantity_g", "logged_at")
-    list_filter = ("meal_type", "logged_at")
-    search_fields = ("food_name", "open_food_facts_id", "user__username")
+    list_display = ("user", "food_name", "nutrition_source", "meal_type", "quantity_g", "logged_at")
+    list_filter = ("meal_type", "nutrition_source", "logged_at")
+    search_fields = ("food_name", "open_food_facts_id", "source_item_id", "user__username")
 
 
 @admin.register(DailyGoal)

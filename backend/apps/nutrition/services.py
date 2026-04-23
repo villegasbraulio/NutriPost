@@ -10,8 +10,17 @@ from django.utils import timezone
 from apps.activities.models import ActivityLog
 from apps.activities.services import TIMING_WINDOW_MINUTES
 from apps.core.ai_client import GroqServiceError, get_model
-from apps.users.services import sync_daily_goal
+from apps.users.services import get_existing_daily_goal, sync_daily_goal
 
+from .catalog import (
+    FOOD_TYPE_BASE,
+    FOOD_TYPE_MIXED,
+    FOOD_TYPE_PACKAGED,
+    get_source_label,
+    infer_food_type,
+    preferred_source_for_food_type,
+    search_food_catalog,
+)
 from .models import DailyGoal, FoodLog, MealRecommendation
 
 POST_WORKOUT_NOTES = "Based on ISSN 2017 and ACSM/AND/DC 2016 position stands."
@@ -295,7 +304,7 @@ def get_or_create_meal_recommendation(activity_log: ActivityLog) -> MealRecommen
 
     candidate_map: dict[str, dict] = {}
     for query in queries:
-        for product in search_open_food_facts(query, preference=preference, limit=8):
+        for product in search_food_catalog(query, preference=preference, limit=8):
             candidate_map[product["id"]] = product
 
     ranked = sorted(
@@ -336,8 +345,11 @@ def get_or_create_meal_recommendation(activity_log: ActivityLog) -> MealRecommen
 
 def ensure_daily_goal(user, target_date: date) -> DailyGoal:
     """Ensure daily goals exist for a date using the latest TDEE-derived profile calculations."""
-    sync_daily_goal(user, target_date)
-    return DailyGoal.objects.get(user=user, date=target_date)
+    existing_goal = get_existing_daily_goal(user, target_date)
+    if existing_goal is not None:
+        return existing_goal
+
+    return sync_daily_goal(user, target_date)
 
 
 def get_nutrition_totals_for_date(user, target_date: date) -> dict[str, Decimal]:
@@ -381,7 +393,10 @@ def normalize_parsed_meal_item(item: dict) -> dict:
         confidence = "medium"
 
     food_name = str(item.get("food_name") or "Unknown food").strip() or "Unknown food"
-    query = str(item.get("open_food_facts_query") or food_name).strip() or food_name
+    query = str(item.get("search_query") or item.get("open_food_facts_query") or food_name).strip() or food_name
+    food_type = str(item.get("food_type") or infer_food_type(f"{food_name} {query}", default=FOOD_TYPE_BASE)).lower()
+    if food_type not in {FOOD_TYPE_BASE, FOOD_TYPE_PACKAGED, FOOD_TYPE_MIXED}:
+        food_type = infer_food_type(f"{food_name} {query}", default=FOOD_TYPE_BASE)
 
     return {
         "food_name": food_name,
@@ -391,18 +406,130 @@ def normalize_parsed_meal_item(item: dict) -> dict:
         "carbs_g": round(carbs, 1),
         "fat_g": round(fat, 1),
         "confidence": confidence,
-        "open_food_facts_query": query,
+        "food_type": food_type,
+        "search_query": query,
     }
+
+
+def build_source_metadata(
+    *,
+    nutrition_source: str,
+    source_name: str,
+    source_brand: str,
+    search_query: str,
+    food_type: str,
+    parse_confidence: str,
+    match_confidence: str,
+    local_fallback: bool = False,
+    fallback_reason: str = "",
+) -> dict:
+    return {
+        "nutrition_source_label": get_source_label(nutrition_source),
+        "source_name": source_name,
+        "source_brand": source_brand,
+        "search_query": search_query,
+        "food_type": food_type,
+        "parse_confidence": parse_confidence,
+        "match_confidence": match_confidence,
+        "local_fallback": local_fallback,
+        "fallback_reason": fallback_reason,
+    }
+
+
+def build_ai_resolved_item(item: dict) -> dict:
+    return {
+        **item,
+        "nutrition_source": FoodLog.NutritionSource.AI,
+        "nutrition_source_label": get_source_label(FoodLog.NutritionSource.AI),
+        "source_item_id": "",
+        "source_name": item["food_name"],
+        "source_brand": "",
+        "match_confidence": "low",
+        "source_metadata": build_source_metadata(
+            nutrition_source=FoodLog.NutritionSource.AI,
+            source_name=item["food_name"],
+            source_brand="",
+            search_query=item["search_query"],
+            food_type=item["food_type"],
+            parse_confidence=item["confidence"],
+            match_confidence="low",
+        ),
+    }
+
+
+def should_use_catalog_candidate(food_type: str, candidate: dict | None) -> bool:
+    if not candidate or food_type == FOOD_TYPE_MIXED:
+        return False
+
+    match_confidence = candidate.get("match_confidence", "low")
+    if match_confidence == "high":
+        return True
+
+    return match_confidence == "medium" and candidate["nutrition_source"] == preferred_source_for_food_type(food_type)
+
+
+def apply_catalog_match_to_parsed_item(item: dict, candidate: dict) -> dict:
+    quantity = max(float(item["estimated_quantity_g"]), 0.0)
+    ratio = quantity / 100 if quantity > 0 else 0
+    candidate_metadata = candidate.get("source_metadata", {})
+    local_fallback = bool(candidate_metadata.get("local_fallback"))
+    fallback_reason = str(candidate_metadata.get("fallback_reason") or "").strip()
+    return {
+        **item,
+        "calories": round(candidate["calories_per_100g"] * ratio, 1),
+        "protein_g": round(candidate["protein_g"] * ratio, 1),
+        "carbs_g": round(candidate["carbs_g"] * ratio, 1),
+        "fat_g": round(candidate["fat_g"] * ratio, 1),
+        "nutrition_source": candidate["nutrition_source"],
+        "nutrition_source_label": candidate["nutrition_source_label"],
+        "source_item_id": candidate["source_item_id"],
+        "source_name": candidate["name"],
+        "source_brand": candidate.get("brand", ""),
+        "match_confidence": candidate.get("match_confidence", "medium"),
+        "source_metadata": build_source_metadata(
+            nutrition_source=candidate["nutrition_source"],
+            source_name=candidate["name"],
+            source_brand=candidate.get("brand", ""),
+            search_query=item["search_query"],
+            food_type=item["food_type"],
+            parse_confidence=item["confidence"],
+            match_confidence=candidate.get("match_confidence", "medium"),
+            local_fallback=local_fallback,
+            fallback_reason=fallback_reason,
+        ),
+    }
+
+
+def resolve_parsed_meal_item(item: dict) -> dict:
+    preferred_source = preferred_source_for_food_type(item["food_type"])
+    candidates = search_food_catalog(
+        item["search_query"],
+        preference="balanced",
+        limit=5,
+        preferred_source=preferred_source,
+        food_type=item["food_type"],
+    )
+    best_candidate = candidates[0] if candidates else None
+    if should_use_catalog_candidate(item["food_type"], best_candidate):
+        return apply_catalog_match_to_parsed_item(item, best_candidate)
+    return build_ai_resolved_item(item)
 
 
 def parse_meal_from_text(description: str) -> dict:
     """
-    Extract foods and estimated macros from a free-text meal description using Groq.
+    Extract foods from a free-text meal description and resolve macros from USDA/OFF when possible.
     """
 
     prompt = f"""
-Extract the individual food items from this meal description and estimate
-their macros. Use realistic portion sizes for a typical adult meal.
+Extract the individual food items from this meal description.
+For each item:
+- estimate a realistic quantity in grams
+- estimate fallback macros for that quantity
+- classify the item as one of:
+  - "base_food": a generic whole food or single ingredient
+  - "packaged_product": a branded or commercial packaged item
+  - "mixed_dish": a composed dish with multiple ingredients
+- provide a concise search_query that can be used against food databases
 
 Meal: "{description}"
 
@@ -410,13 +537,14 @@ Return ONLY a valid JSON array with no explanation and no markdown fences:
 [
   {{
     "food_name": "Oatmeal",
+    "food_type": "base_food",
     "estimated_quantity_g": 80,
     "calories": 300,
     "protein_g": 10,
     "carbs_g": 54,
     "fat_g": 5,
     "confidence": "high",
-    "open_food_facts_query": "oatmeal rolled oats"
+    "search_query": "oatmeal rolled oats"
   }}
 ]
 
@@ -444,10 +572,11 @@ Return ONLY the JSON array. No text before or after it.
         raise ValueError("Groq meal parsing response must be a JSON array.")
 
     normalized_items = [normalize_parsed_meal_item(item) for item in parsed_items if isinstance(item, dict)]
+    resolved_items = [resolve_parsed_meal_item(item) for item in normalized_items]
     totals = {
-        "total_calories": round(sum(item["calories"] for item in normalized_items), 1),
-        "total_protein_g": round(sum(item["protein_g"] for item in normalized_items), 1),
-        "total_carbs_g": round(sum(item["carbs_g"] for item in normalized_items), 1),
-        "total_fat_g": round(sum(item["fat_g"] for item in normalized_items), 1),
+        "total_calories": round(sum(item["calories"] for item in resolved_items), 1),
+        "total_protein_g": round(sum(item["protein_g"] for item in resolved_items), 1),
+        "total_carbs_g": round(sum(item["carbs_g"] for item in resolved_items), 1),
+        "total_fat_g": round(sum(item["fat_g"] for item in resolved_items), 1),
     }
-    return {"items": normalized_items, **totals}
+    return {"items": resolved_items, **totals}

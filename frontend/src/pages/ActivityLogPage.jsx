@@ -12,6 +12,7 @@ import { nutritionService } from "../services/nutritionService";
 import { routineService } from "../services/routineService";
 import { useActivities } from "../hooks/useActivities";
 import { useAuth } from "../hooks/useAuth";
+import { useLanguage } from "../hooks/useLanguage";
 
 function normalizeListPayload(data) {
   return Array.isArray(data) ? data : data.results || [];
@@ -36,6 +37,7 @@ export function ActivityLogPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { isSpanish } = useLanguage();
   const { activityTypes, loading } = useActivities();
   const [step, setStep] = useState(1);
   const [query, setQuery] = useState("");
@@ -49,6 +51,65 @@ export function ActivityLogPage() {
   const [recommendation, setRecommendation] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const isStrengthActivity = selectedType?.category === "strength" || selectedType?.category === "gym";
+  const copy = isSpanish
+    ? {
+        pickActivity: "Elige una actividad para continuar.",
+        activityLogged: "Actividad cargada.",
+        activityError: "No pudimos cargar la actividad.",
+        step1: "Paso 1",
+        step2: "Paso 2",
+        chooseTitle: "Elige la actividad que acabas de terminar",
+        continue: "Continuar",
+        captureTitle: "Completa los detalles del esfuerzo",
+        selectedActivity: "Actividad elegida",
+        duration: "Duracion en minutos",
+        savedRoutine: "Usar una rutina guardada?",
+        savedRoutineText: "Elige una rutina para reemplazar el MET generico por un calculo ejercicio por ejercicio.",
+        createNew: "Crear nueva",
+        withoutRoutine: "Cargar sin rutina",
+        usesGeneric: "Usa MET generico",
+        needsAi: "Necesita IA",
+        comparisonMissing: "Analiza primero esta rutina para desbloquear la comparacion lado a lado.",
+        analyzeEdit: "Analizar/Editar",
+        notes: "Notas",
+        notesPlaceholder: "Como se sintio la sesion?",
+        back: "Atras",
+        calculating: "Calculando...",
+        seeResults: "Ver resultados",
+        saved: "Actividad guardada",
+        recommendedFoods: "Alimentos recomendados",
+        recommendedFoodsText: "Toca una tarjeta para enviarla al registro de comida.",
+        viewDetail: "Ver detalle",
+      }
+    : {
+        pickActivity: "Pick an activity to continue.",
+        activityLogged: "Activity logged.",
+        activityError: "Could not log activity.",
+        step1: "Step 1",
+        step2: "Step 2",
+        chooseTitle: "Choose the activity you just finished",
+        continue: "Continue",
+        captureTitle: "Capture the effort details",
+        selectedActivity: "Selected activity",
+        duration: "Duration in minutes",
+        savedRoutine: "Use a saved routine?",
+        savedRoutineText: "Pick a routine to replace generic MET with exercise-by-exercise calorie math.",
+        createNew: "Create new",
+        withoutRoutine: "Log without routine",
+        usesGeneric: "Uses generic MET",
+        needsAi: "Needs AI",
+        comparisonMissing: "Analyze this routine first to unlock the side-by-side calorie comparison.",
+        analyzeEdit: "Analyze/Edit",
+        notes: "Notes",
+        notesPlaceholder: "How did the session feel?",
+        back: "Back",
+        calculating: "Calculating...",
+        seeResults: "See Results",
+        saved: "Activity saved",
+        recommendedFoods: "Recommended foods",
+        recommendedFoodsText: "Tap a card to send it to the food log.",
+        viewDetail: "View detail",
+      };
 
   useEffect(() => {
     let active = true;
@@ -114,7 +175,7 @@ export function ActivityLogPage() {
 
   const handleCreate = async () => {
     if (!selectedType) {
-      toast.error("Pick an activity to continue.");
+      toast.error(copy.pickActivity);
       return;
     }
 
@@ -131,9 +192,9 @@ export function ActivityLogPage() {
       setResult(createdLog);
       setRecommendation(generatedRecommendation);
       setStep(3);
-      toast.success("Activity logged.");
+      toast.success(copy.activityLogged);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Could not log activity.");
+      toast.error(error.response?.data?.message || copy.activityError);
     } finally {
       setSubmitting(false);
     }
@@ -144,18 +205,18 @@ export function ActivityLogPage() {
   }
 
   return (
-    <div className="glass-panel rounded-[32px] p-6">
-      <div className="mb-8 flex items-center gap-3">
+    <div className="glass-panel rounded-[32px] p-5 sm:p-6">
+      <div className="mb-8 flex items-center gap-3 overflow-x-auto pb-2">
         {[1, 2, 3].map((item) => (
-          <div key={item} className="flex items-center gap-3">
+          <div key={item} className="flex shrink-0 items-center gap-3">
             <div
-              className={`flex h-10 w-10 items-center justify-center rounded-full ${
+              className={`flex h-9 w-9 items-center justify-center rounded-full sm:h-10 sm:w-10 ${
                 item <= step ? "bg-primary text-background" : "bg-background/60 text-textMuted"
               }`}
             >
               {item}
             </div>
-            {item < 3 ? <div className="h-px w-12 bg-white/10" /> : null}
+            {item < 3 ? <div className="h-px w-8 bg-white/10 sm:w-12" /> : null}
           </div>
         ))}
       </div>
@@ -163,8 +224,8 @@ export function ActivityLogPage() {
       {step === 1 ? (
         <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
           <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-primary">Step 1</p>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight">Choose the activity you just finished</h1>
+            <p className="text-sm uppercase tracking-[0.24em] text-primary">{copy.step1}</p>
+            <h1 className="mt-3 text-3xl font-bold tracking-tight">{copy.chooseTitle}</h1>
           </div>
           <ActivityTypePicker
             activityTypes={activityTypes}
@@ -179,7 +240,7 @@ export function ActivityLogPage() {
               disabled={!selectedType}
               className="rounded-2xl bg-primary px-5 py-3 font-semibold text-background transition disabled:opacity-50"
             >
-              Continue
+              {copy.continue}
             </button>
           </div>
         </motion.div>
@@ -188,55 +249,55 @@ export function ActivityLogPage() {
       {step === 2 ? (
         <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
           <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-primary">Step 2</p>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight">Capture the effort details</h1>
+            <p className="text-sm uppercase tracking-[0.24em] text-primary">{copy.step2}</p>
+            <h1 className="mt-3 text-3xl font-bold tracking-tight">{copy.captureTitle}</h1>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-3xl border border-primary/20 bg-primary/10 p-5">
-              <p className="text-sm text-textMuted">Selected activity</p>
+              <p className="text-sm text-textMuted">{copy.selectedActivity}</p>
               <p className="mt-3 text-2xl font-semibold">{selectedType?.name}</p>
               <p className="text-sm capitalize text-textMuted">{selectedType?.category}</p>
             </div>
             <label className="rounded-3xl border border-white/10 bg-background/60 p-5">
               <div className="flex items-center gap-2 text-sm text-textMuted">
                 <Timer className="h-4 w-4" />
-                Duration in minutes
+                {copy.duration}
               </div>
               <input
                 type="number"
                 min="1"
                 value={duration}
                 onChange={(event) => setDuration(Number(event.target.value))}
-                className="mt-4 w-full bg-transparent text-4xl font-bold focus:outline-none"
+                className="mt-4 w-full bg-transparent text-3xl font-bold focus:outline-none sm:text-4xl"
               />
             </label>
           </div>
 
           {isStrengthActivity ? (
             <section className="rounded-[28px] border border-secondary/20 bg-secondary/10 p-5">
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="flex items-center gap-2 text-secondary">
                     <Dumbbell className="h-4 w-4" />
-                    <span className="text-sm font-semibold">Use a saved routine?</span>
+                    <span className="text-sm font-semibold">{copy.savedRoutine}</span>
                   </div>
                   <p className="mt-2 text-sm text-textMuted">
-                    Pick a routine to replace generic MET with exercise-by-exercise calorie math.
+                    {copy.savedRoutineText}
                   </p>
                 </div>
                 <button
                   onClick={() => navigate("/routines/new")}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-background/60 px-4 py-2 text-sm font-semibold text-primary"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-background/60 px-4 py-2 text-sm font-semibold text-primary sm:w-auto"
                 >
                   <Plus className="h-4 w-4" />
-                  Create new
+                  {copy.createNew}
                 </button>
               </div>
 
               {routinesLoading ? (
                 <LoadingSkeleton className="h-24 rounded-3xl" />
               ) : (
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   <button
                     type="button"
                     onClick={() => setSelectedRoutine(null)}
@@ -246,8 +307,8 @@ export function ActivityLogPage() {
                         : "border-white/10 bg-background/50 hover:border-primary/30"
                     }`}
                   >
-                    <p className="font-semibold">Log without routine</p>
-                    <p className="mt-1 text-sm text-textMuted">Uses generic MET {selectedType?.met_value}</p>
+                    <p className="font-semibold">{copy.withoutRoutine}</p>
+                    <p className="mt-1 text-sm text-textMuted">{copy.usesGeneric} MET {selectedType?.met_value}</p>
                   </button>
 
                   {routines.map((routine) => (
@@ -269,7 +330,7 @@ export function ActivityLogPage() {
                           </p>
                         </div>
                         <span className="rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
-                          {routine.adjusted_met ? `MET ${Number(routine.adjusted_met).toFixed(1)}` : "Needs AI"}
+                          {routine.adjusted_met ? `MET ${Number(routine.adjusted_met).toFixed(1)}` : copy.needsAi}
                         </span>
                       </div>
                     </button>
@@ -288,8 +349,10 @@ export function ActivityLogPage() {
                       <p className="font-semibold">{selectedRoutine.name}</p>
                       <p className="mt-1 text-sm text-textMuted">
                         {calorieComparison.routine
-                          ? `Without your routine: ~${Math.round(calorieComparison.generic)} kcal | With your routine: ~${Math.round(calorieComparison.routine)} kcal`
-                          : "Analyze this routine first to unlock the side-by-side calorie comparison."}
+                          ? isSpanish
+                            ? `Sin tu rutina: ~${Math.round(calorieComparison.generic)} kcal | Con tu rutina: ~${Math.round(calorieComparison.routine)} kcal`
+                            : `Without your routine: ~${Math.round(calorieComparison.generic)} kcal | With your routine: ~${Math.round(calorieComparison.routine)} kcal`
+                          : copy.comparisonMissing}
                       </p>
                     </div>
                     <button
@@ -298,7 +361,7 @@ export function ActivityLogPage() {
                       className="inline-flex items-center gap-2 text-sm font-semibold text-secondary"
                     >
                       <Sparkles className="h-4 w-4" />
-                      Analyze/Edit
+                      {copy.analyzeEdit}
                     </button>
                   </div>
                 </motion.div>
@@ -307,28 +370,28 @@ export function ActivityLogPage() {
           ) : null}
 
           <label className="block">
-            <span className="mb-2 block text-sm text-textMuted">Notes</span>
+            <span className="mb-2 block text-sm text-textMuted">{copy.notes}</span>
             <textarea
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               rows="4"
               className="focus-ring w-full rounded-3xl border border-white/10 bg-background/60 px-4 py-3"
-              placeholder="How did the session feel?"
+              placeholder={copy.notesPlaceholder}
             />
           </label>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
             <button
               onClick={() => setStep(1)}
-              className="rounded-2xl border border-white/10 px-5 py-3 font-semibold text-textMuted transition hover:text-textPrimary"
+              className="w-full rounded-2xl border border-white/10 px-5 py-3 font-semibold text-textMuted transition hover:text-textPrimary sm:w-auto"
             >
-              Back
+              {copy.back}
             </button>
             <button
               onClick={handleCreate}
               disabled={submitting}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 font-semibold text-background transition disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 font-semibold text-background transition disabled:opacity-60 sm:w-auto"
             >
-              {submitting ? "Calculating..." : "See Results"}
+              {submitting ? copy.calculating : copy.seeResults}
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
@@ -337,12 +400,12 @@ export function ActivityLogPage() {
 
       {step === 3 && result && recommendation ? (
         <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
-          <div className="rounded-[32px] bg-gradient-to-br from-primary/20 to-secondary/20 p-6">
+          <div className="rounded-[32px] bg-gradient-to-br from-primary/20 to-secondary/20 p-5 sm:p-6">
             <div className="inline-flex items-center gap-2 rounded-full bg-background/40 px-4 py-2 text-sm text-primary">
               <CheckCircle2 className="h-4 w-4" />
-              Activity saved
+              {copy.saved}
             </div>
-            <h1 className="mt-5 text-5xl font-bold tracking-tight text-textPrimary">
+            <h1 className="mt-5 text-4xl font-bold tracking-tight text-textPrimary sm:text-5xl">
               {Math.round(result.calories_burned)} kcal
             </h1>
             <p className="mt-3 max-w-2xl text-textMuted">
@@ -354,19 +417,19 @@ export function ActivityLogPage() {
           </div>
 
           <div>
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-2xl font-semibold">Recommended foods</h2>
-                <p className="text-sm text-textMuted">Tap a card to send it to the food log.</p>
+                <h2 className="text-2xl font-semibold">{copy.recommendedFoods}</h2>
+                <p className="text-sm text-textMuted">{copy.recommendedFoodsText}</p>
               </div>
               <button
                 onClick={() => navigate(`/activities/logs/${result.id}`)}
                 className="text-sm font-semibold text-primary"
               >
-                View detail
+                {copy.viewDetail}
               </button>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {recommendation.recommended_foods.map((food) => (
                 <FoodRecommendationCard
                   key={food.id}

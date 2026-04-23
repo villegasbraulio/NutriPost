@@ -3,7 +3,9 @@ import { ArrowRight, Flame, LineChart, Salad, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
 
+import { LanguageSelector } from "../components/LanguageSelector";
 import { useAuth } from "../hooks/useAuth";
+import { useLanguage } from "../hooks/useLanguage";
 import { pageTransition, staggerContainer, staggerItem } from "../utils/animations";
 
 const features = [
@@ -27,12 +29,50 @@ const features = [
 export function LandingPage() {
   const navigate = useNavigate();
   const { loginDemo } = useAuth();
+  const { isSpanish } = useLanguage();
+  const copy = isSpanish
+    ? {
+        tagline: "Registra esfuerzo. Recuperate con intencion.",
+        login: "Ingresar",
+        getStarted: "Empezar",
+        badge: "Pensado para la recuperacion",
+        title: "Entrena fuerte. Que tu plan de recuperacion este a la altura.",
+        description:
+          "NutriPost combina registro de actividad, calculo de calorias por MET y recomendaciones de alimentos reales para que cada entrenamiento termine con una mejor comida.",
+        tryDemo: "Probar demo",
+        createAccount: "Crear cuenta",
+        burn: "Gasto de hoy",
+        synced: "Running + HIIT sincronizado",
+        recovery: "Objetivo de recuperacion",
+        protein: "Proteina post-entreno",
+        stack: "Combinacion recomendada",
+        powered: "Impulsado por Open Food Facts",
+      }
+    : {
+        tagline: "Track effort. Recover with intent.",
+        login: "Login",
+        getStarted: "Get Started",
+        badge: "Built for training recovery",
+        title: "Train hard. Let your recovery plan keep up.",
+        description:
+          "NutriPost combines physical activity logging, MET calorie burn calculations, and real food recommendations so every workout ends with a better next meal.",
+        tryDemo: "Try Demo",
+        createAccount: "Create Account",
+        burn: "Today’s burn",
+        synced: "Running + HIIT session synced",
+        recovery: "Recovery target",
+        protein: "Protein post-workout",
+        stack: "Recommended stack",
+        powered: "Open Food Facts powered",
+      };
 
   const handleDemo = async () => {
     await toast.promise(loginDemo(), {
-      loading: "Signing into the demo account...",
-      success: "Demo session ready.",
-      error: "Demo account not available yet. Run seed_demo_user first.",
+      loading: isSpanish ? "Ingresando al usuario demo..." : "Signing into the demo account...",
+      success: isSpanish ? "Sesion demo lista." : "Demo session ready.",
+      error: isSpanish
+        ? "La cuenta demo todavia no esta disponible. Corre seed_demo_user primero."
+        : "Demo account not available yet. Run seed_demo_user first.",
     });
     navigate("/dashboard");
   };
@@ -48,55 +88,60 @@ export function LandingPage() {
         <div className="absolute right-0 top-40 h-72 w-72 rounded-full bg-secondary/20 blur-3xl" />
 
         <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6">
-          <header className="flex items-center justify-between">
+          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.28em] text-primary">NutriPost</p>
-              <p className="text-sm text-textMuted">Track effort. Recover with intent.</p>
+              <p className="text-sm text-textMuted">{copy.tagline}</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+              <div className="sm:mr-2">
+                <LanguageSelector compact />
+              </div>
               <Link
                 to="/auth/login"
-                className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-textMuted transition hover:border-white/20 hover:text-textPrimary"
+                className="flex items-center justify-center rounded-2xl border border-white/10 px-4 py-2 text-sm text-textMuted transition hover:border-white/20 hover:text-textPrimary"
               >
-                Login
+                {copy.login}
               </Link>
               <Link
                 to="/auth/register"
-                className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-background transition hover:bg-primary/90"
+                className="flex items-center justify-center rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-background transition hover:bg-primary/90"
               >
-                Get Started
+                {copy.getStarted}
               </Link>
             </div>
           </header>
 
-          <div className="grid items-center gap-12 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
+          <div className="grid items-center gap-10 py-12 sm:gap-12 sm:py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
             <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-8">
-              <motion.div variants={staggerItem} className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm text-primary">
+              <motion.div
+                variants={staggerItem}
+                className="inline-flex max-w-max items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm text-primary"
+              >
                 <Sparkles className="h-4 w-4" />
-                Built for training recovery
+                {copy.badge}
               </motion.div>
               <motion.div variants={staggerItem} className="space-y-5">
-                <h1 className="max-w-xl text-5xl font-bold tracking-tight sm:text-6xl">
-                  Train hard. Let your recovery plan keep up.
+                <h1 className="max-w-xl text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+                  {copy.title}
                 </h1>
-                <p className="max-w-2xl text-lg leading-relaxed text-textMuted">
-                  NutriPost combines physical activity logging, MET calorie burn calculations,
-                  and real food recommendations so every workout ends with a better next meal.
+                <p className="max-w-2xl text-base leading-relaxed text-textMuted sm:text-lg">
+                  {copy.description}
                 </p>
               </motion.div>
               <motion.div variants={staggerItem} className="flex flex-col gap-3 sm:flex-row">
                 <button
                   onClick={handleDemo}
-                  className="flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 font-semibold text-background transition hover:bg-primary/90"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 font-semibold text-background transition hover:bg-primary/90 sm:w-auto"
                 >
-                  Try Demo
+                  {copy.tryDemo}
                   <ArrowRight className="h-4 w-4" />
                 </button>
                 <Link
                   to="/auth/register"
-                  className="rounded-2xl border border-white/10 px-5 py-3 font-semibold text-textPrimary transition hover:border-secondary/40 hover:bg-secondary/10"
+                  className="flex w-full items-center justify-center rounded-2xl border border-white/10 px-5 py-3 font-semibold text-textPrimary transition hover:border-secondary/40 hover:bg-secondary/10 sm:w-auto"
                 >
-                  Create Account
+                  {copy.createAccount}
                 </Link>
               </motion.div>
             </motion.div>
@@ -105,26 +150,26 @@ export function LandingPage() {
               initial={{ opacity: 0, x: 24 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.15, duration: 0.5 }}
-              className="glass-panel rounded-[32px] p-6 shadow-glow"
+              className="glass-panel rounded-[32px] p-5 shadow-glow sm:p-6"
             >
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-3xl bg-background/60 p-5">
-                  <p className="text-sm text-textMuted">Today’s burn</p>
-                  <p className="mt-4 text-4xl font-bold">612</p>
-                  <p className="mt-2 text-sm text-primary">Running + HIIT session synced</p>
+                  <p className="text-sm text-textMuted">{copy.burn}</p>
+                  <p className="mt-4 text-3xl font-bold sm:text-4xl">612</p>
+                  <p className="mt-2 text-sm text-primary">{copy.synced}</p>
                 </div>
                 <div className="rounded-3xl bg-gradient-to-br from-secondary/25 to-secondary/5 p-5">
-                  <p className="text-sm text-textMuted">Recovery target</p>
-                  <p className="mt-4 text-4xl font-bold">31g</p>
-                  <p className="mt-2 text-sm text-secondary">Protein post-workout</p>
+                  <p className="text-sm text-textMuted">{copy.recovery}</p>
+                  <p className="mt-4 text-3xl font-bold sm:text-4xl">31g</p>
+                  <p className="mt-2 text-sm text-secondary">{copy.protein}</p>
                 </div>
                 <div className="rounded-3xl bg-background/60 p-5 sm:col-span-2">
-                  <p className="text-sm text-textMuted">Recommended stack</p>
+                  <p className="text-sm text-textMuted">{copy.stack}</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     {["Greek Yogurt", "Banana", "Rice Cakes"].map((item) => (
                       <div key={item} className="rounded-2xl border border-white/10 bg-surface px-4 py-3">
                         <p className="font-medium">{item}</p>
-                        <p className="text-sm text-textMuted">Open Food Facts powered</p>
+                        <p className="text-sm text-textMuted">{copy.powered}</p>
                       </div>
                     ))}
                   </div>
