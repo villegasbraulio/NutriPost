@@ -88,6 +88,7 @@ def test_search_usda_foods_returns_live_results_before_local_fallback(monkeypatc
 
 
 def test_resolve_parsed_meal_item_uses_usda_for_base_foods(monkeypatch):
+    monkeypatch.setattr(settings, "USDA_API_KEY", "test-key", raising=False)
     monkeypatch.setattr("apps.nutrition.catalog.requests.post", raise_request_exception)
     monkeypatch.setattr("apps.nutrition.catalog.requests.get", raise_request_exception)
 
