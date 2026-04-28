@@ -17,4 +17,12 @@ export const dashboardService = {
     const { data } = await apiClient.get("/dashboard/insights/");
     return data;
   },
+  async getNotifications(params = {}) {
+    const { data } = await apiClient.get("/dashboard/notifications/", { params });
+    return data;
+  },
+  async dismissNotification(id) {
+    const { data } = await apiClient.post(`/dashboard/notifications/${id}/dismiss/`);
+    return data;
+  },
 };

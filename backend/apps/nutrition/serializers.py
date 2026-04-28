@@ -2,8 +2,53 @@ from rest_framework import serializers
 from django.utils import timezone
 
 from apps.activities.services import TIMING_WINDOW_MINUTES, calculate_timing_expires_at
-from .models import DailyGoal, FoodLog, MealRecommendation
+from .models import DailyGoal, FoodLog, MealRecommendation, PostWorkoutWorkflow
 from .services import POST_WORKOUT_NOTES
+
+
+def serialize_optional_datetime(value):
+    if value is None:
+        return None
+    return timezone.localtime(value).isoformat()
+
+
+class PostWorkoutWorkflowSerializer(serializers.ModelSerializer):
+    activity_name = serializers.SerializerMethodField()
+    reminder_due_at = serializers.SerializerMethodField()
+    reminder_triggered_at = serializers.SerializerMethodField()
+    completed_at = serializers.SerializerMethodField()
+    is_action_required = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PostWorkoutWorkflow
+        fields = (
+            "id",
+            "activity_log",
+            "activity_name",
+            "status",
+            "reminder_due_at",
+            "reminder_triggered_at",
+            "completed_at",
+            "completed_by_food_log",
+            "reminder_message",
+            "is_action_required",
+        )
+        read_only_fields = fields
+
+    def get_activity_name(self, obj: PostWorkoutWorkflow) -> str:
+        return obj.activity_log.activity_type.name
+
+    def get_reminder_due_at(self, obj: PostWorkoutWorkflow):
+        return serialize_optional_datetime(obj.reminder_due_at)
+
+    def get_reminder_triggered_at(self, obj: PostWorkoutWorkflow):
+        return serialize_optional_datetime(obj.reminder_triggered_at)
+
+    def get_completed_at(self, obj: PostWorkoutWorkflow):
+        return serialize_optional_datetime(obj.completed_at)
+
+    def get_is_action_required(self, obj: PostWorkoutWorkflow) -> bool:
+        return obj.status == PostWorkoutWorkflow.Status.REMINDER_DUE
 
 
 class MealRecommendationSerializer(serializers.ModelSerializer):
@@ -11,6 +56,7 @@ class MealRecommendationSerializer(serializers.ModelSerializer):
     timing_window_minutes = serializers.SerializerMethodField()
     timing_expires_at = serializers.SerializerMethodField()
     notes = serializers.SerializerMethodField()
+    workflow = serializers.SerializerMethodField()
 
     class Meta:
         model = MealRecommendation
@@ -26,6 +72,7 @@ class MealRecommendationSerializer(serializers.ModelSerializer):
             "timing_window_minutes",
             "timing_expires_at",
             "notes",
+            "workflow",
             "generated_at",
         )
         read_only_fields = fields
@@ -40,6 +87,14 @@ class MealRecommendationSerializer(serializers.ModelSerializer):
 
     def get_notes(self, obj: MealRecommendation):
         return POST_WORKOUT_NOTES
+
+    def get_workflow(self, obj: MealRecommendation):
+        from .services import sync_post_workout_workflow
+
+        workflow = getattr(obj.activity_log, "post_workout_workflow", None)
+        if workflow is None:
+            workflow = sync_post_workout_workflow(obj.activity_log, recommendation=obj)
+        return PostWorkoutWorkflowSerializer(workflow).data
 
 
 class FoodLogSerializer(serializers.ModelSerializer):

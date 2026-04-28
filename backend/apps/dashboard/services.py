@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
@@ -12,10 +13,12 @@ from apps.nutrition.serializers import DailyGoalSerializer
 from apps.nutrition.services import ensure_daily_goal
 from apps.users.services import calculate_daily_goal_targets
 
-from .models import WeeklyInsight
+from .models import DashboardNotification, WeeklyInsight
 
 INSIGHT_CACHE_HOURS = 23
 INSIGHT_MIN_ACTIVITY_DAYS = 3
+SCHEDULED_INSIGHT_LANGUAGE_CODES = ("en", "es")
+INSIGHT_NOTIFICATION_LANGUAGE_CODE = "en"
 
 
 def get_period_days(period: str) -> int:
@@ -101,6 +104,7 @@ def build_summary(user, period: str) -> dict:
     today_protein = today_food_totals["protein_g"] or Decimal("0")
     today_carbs = today_food_totals["carbs_g"] or Decimal("0")
     today_fat = today_food_totals["fat_g"] or Decimal("0")
+    unread_notifications_count = DashboardNotification.objects.filter(user=user, is_read=False).count()
 
     today_goal = ensure_daily_goal(user, today)
     return {
@@ -116,6 +120,7 @@ def build_summary(user, period: str) -> dict:
             "fat_g": float(fat_total),
         },
         "today_goal": DailyGoalSerializer(today_goal).data,
+        "unread_notifications_count": unread_notifications_count,
         "today": {
             "date": today.isoformat(),
             "calories_burned": float(today_calories_burned),
@@ -247,15 +252,188 @@ def format_daily_stats(daily_stats: list[dict]) -> str:
     )
 
 
-def resolve_language_label(language_hint: str | None) -> str:
-    """Convert an HTTP language hint into a short instruction for the AI insight."""
-
+def resolve_language_code(language_hint: str | None) -> str:
     hint = (language_hint or "").lower()
     if hint.startswith("es"):
-        return "Spanish"
+        return "es"
     if hint.startswith("pt"):
+        return "pt"
+    return "en"
+
+
+def resolve_language_label(language_hint: str | None) -> str:
+    """Convert a language code or hint into a short instruction for the AI insight."""
+
+    language_code = resolve_language_code(language_hint)
+    if language_code == "es":
+        return "Spanish"
+    if language_code == "pt":
         return "Portuguese"
     return "English"
+
+
+def is_spanish_language_hint(language_hint: str | None) -> bool:
+    return resolve_language_code(language_hint) == "es"
+
+
+def has_minimum_activity_days(user, period_start: date, period_end: date) -> bool:
+    start_at, end_at = get_local_datetime_range(period_start, period_end)
+    activity_days = {
+        get_local_date(value)
+        for value in ActivityLog.objects.filter(
+            user=user,
+            logged_at__gte=start_at,
+            logged_at__lt=end_at,
+        ).values_list("logged_at", flat=True)
+    }
+    return len(activity_days) >= INSIGHT_MIN_ACTIVITY_DAYS
+
+
+@dataclass
+class ScheduledInsightSummary:
+    processed: int = 0
+    generated: int = 0
+    cached: int = 0
+    failed: int = 0
+    skipped: int = 0
+    notifications_synced: int = 0
+
+
+def build_dashboard_notification_payload(workflow) -> dict:
+    """Store stable, language-agnostic notification data for frontend rendering."""
+
+    return {
+        "activity_log_id": workflow.activity_log_id,
+        "activity_name": workflow.activity_log.activity_type.name,
+        "reminder_due_at": timezone.localtime(workflow.reminder_due_at).isoformat(),
+    }
+
+
+def build_weekly_insight_notification_payload(insight: WeeklyInsight) -> dict:
+    return {
+        "language": insight.language,
+        "period_start": insight.period_start.isoformat(),
+        "period_end": insight.period_end.isoformat(),
+        "generated_at": timezone.localtime(insight.generated_at).isoformat(),
+    }
+
+
+def sync_dashboard_notification_for_workflow(workflow, *, now=None):
+    """Keep the in-app dashboard notification aligned with the workflow status."""
+
+    now = now or timezone.now()
+    notification = getattr(workflow, "dashboard_notification", None)
+
+    if workflow.status == workflow.Status.REMINDER_DUE:
+        payload = build_dashboard_notification_payload(workflow)
+        if notification is None:
+            return DashboardNotification.objects.create(
+                user=workflow.user,
+                workflow=workflow,
+                kind=DashboardNotification.Kind.POST_WORKOUT_REMINDER,
+                payload=payload,
+            )
+
+        fields_to_update = []
+        if notification.user_id != workflow.user_id:
+            notification.user = workflow.user
+            fields_to_update.append("user")
+        if notification.kind != DashboardNotification.Kind.POST_WORKOUT_REMINDER:
+            notification.kind = DashboardNotification.Kind.POST_WORKOUT_REMINDER
+            fields_to_update.append("kind")
+        if notification.payload != payload:
+            notification.payload = payload
+            fields_to_update.append("payload")
+        if fields_to_update:
+            notification.save(update_fields=[*fields_to_update, "updated_at"])
+        return notification
+
+    if notification is not None and not notification.is_read:
+        notification.is_read = True
+        notification.read_at = now
+        notification.save(update_fields=["is_read", "read_at", "updated_at"])
+    return notification
+
+
+def sync_dashboard_notification_for_weekly_insight(
+    insight: WeeklyInsight,
+    *,
+    now=None,
+    mark_unread: bool = False,
+):
+    """Create or refresh the dashboard notification tied to a weekly insight."""
+
+    now = now or timezone.now()
+    notification = getattr(insight, "dashboard_notification", None)
+    payload = build_weekly_insight_notification_payload(insight)
+
+    if notification is None:
+        return DashboardNotification.objects.create(
+            user=insight.user,
+            weekly_insight=insight,
+            kind=DashboardNotification.Kind.WEEKLY_INSIGHT,
+            payload=payload,
+            is_read=not mark_unread,
+            read_at=None if mark_unread else now,
+        )
+
+    fields_to_update = []
+    if notification.user_id != insight.user_id:
+        notification.user = insight.user
+        fields_to_update.append("user")
+    if notification.kind != DashboardNotification.Kind.WEEKLY_INSIGHT:
+        notification.kind = DashboardNotification.Kind.WEEKLY_INSIGHT
+        fields_to_update.append("kind")
+    if notification.payload != payload:
+        notification.payload = payload
+        fields_to_update.append("payload")
+    if mark_unread and notification.is_read:
+        notification.is_read = False
+        notification.read_at = None
+        fields_to_update.extend(["is_read", "read_at"])
+
+    if fields_to_update:
+        notification.save(update_fields=[*fields_to_update, "updated_at"])
+    return notification
+
+
+def get_dashboard_notifications(user, unread_only: bool = False):
+    queryset = (
+        DashboardNotification.objects.filter(user=user)
+        .select_related(
+            "workflow",
+            "workflow__activity_log",
+            "workflow__activity_log__activity_type",
+            "weekly_insight",
+        )
+        .order_by("is_read", "-created_at")
+    )
+    if unread_only:
+        queryset = queryset.filter(is_read=False)
+    return queryset
+
+
+def mark_dashboard_notification_as_read(notification, *, now=None):
+    if notification.is_read:
+        return notification
+
+    notification.is_read = True
+    notification.read_at = now or timezone.now()
+    notification.save(update_fields=["is_read", "read_at", "updated_at"])
+    return notification
+
+
+def get_latest_weekly_insight_record(user, period_start: date, period_end: date, language_code: str):
+    return (
+        WeeklyInsight.objects.filter(
+            user=user,
+            period_start=period_start,
+            period_end=period_end,
+            language=language_code,
+        )
+        .order_by("-generated_at")
+        .first()
+    )
 
 
 def generate_weekly_insight(user, language_hint: str | None = None) -> str:
@@ -311,6 +489,7 @@ def serialize_weekly_insight(insight: WeeklyInsight, *, cached: bool) -> dict:
     return {
         "available": True,
         "content": insight.content,
+        "language": insight.language,
         "period_start": insight.period_start.isoformat(),
         "period_end": insight.period_end.isoformat(),
         "generated_at": timezone.localtime(insight.generated_at).isoformat(),
@@ -321,40 +500,22 @@ def serialize_weekly_insight(insight: WeeklyInsight, *, cached: bool) -> dict:
 def get_weekly_insight(user, language_hint: str | None = None) -> dict:
     """Return a cached weekly insight when fresh, or generate a new one after the cache expires."""
 
+    language_code = resolve_language_code(language_hint)
     period_end = timezone.localdate()
     period_start = period_end - timedelta(days=6)
-    start_at, end_at = get_local_datetime_range(period_start, period_end)
-
-    activity_days = list(
-        {
-            get_local_date(value)
-            for value in ActivityLog.objects.filter(
-                user=user,
-                logged_at__gte=start_at,
-                logged_at__lt=end_at,
-            ).values_list("logged_at", flat=True)
-        }
-    )
-    if len(activity_days) < INSIGHT_MIN_ACTIVITY_DAYS:
+    if not has_minimum_activity_days(user, period_start, period_end):
         return {
             "available": False,
             "content": "",
             "message": "Log 3+ days of activity to unlock your insights",
+            "language": language_code,
             "period_start": period_start.isoformat(),
             "period_end": period_end.isoformat(),
             "generated_at": None,
             "cached": False,
         }
 
-    latest_insight = (
-        WeeklyInsight.objects.filter(
-            user=user,
-            period_start=period_start,
-            period_end=period_end,
-        )
-        .order_by("-generated_at")
-        .first()
-    )
+    latest_insight = get_latest_weekly_insight_record(user, period_start, period_end, language_code)
 
     if latest_insight and latest_insight.generated_at >= timezone.now() - timedelta(hours=INSIGHT_CACHE_HOURS):
         return serialize_weekly_insight(latest_insight, cached=True)
@@ -364,7 +525,8 @@ def get_weekly_insight(user, language_hint: str | None = None) -> dict:
     if latest_insight:
         latest_insight.content = content
         latest_insight.generated_at = timezone.now()
-        latest_insight.save(update_fields=["content", "generated_at"])
+        latest_insight.language = language_code
+        latest_insight.save(update_fields=["content", "generated_at", "language"])
         return serialize_weekly_insight(latest_insight, cached=False)
 
     insight = WeeklyInsight.objects.create(
@@ -372,6 +534,71 @@ def get_weekly_insight(user, language_hint: str | None = None) -> dict:
         content=content,
         period_start=period_start,
         period_end=period_end,
+        language=language_code,
         generated_at=timezone.now(),
     )
     return serialize_weekly_insight(insight, cached=False)
+
+
+def generate_scheduled_weekly_insights(*, now=None, user_limit: int | None = None) -> ScheduledInsightSummary:
+    """Pre-generate fresh weekly insights so the dashboard can load them instantly."""
+
+    now = now or timezone.now()
+    period_end = timezone.localdate()
+    period_start = period_end - timedelta(days=6)
+    start_at, end_at = get_local_datetime_range(period_start, period_end)
+    recent_logs = (
+        ActivityLog.objects.filter(logged_at__gte=start_at, logged_at__lt=end_at)
+        .select_related("user")
+        .order_by("user_id", "-logged_at")
+    )
+
+    users_by_id = {}
+    activity_days_by_user = defaultdict(set)
+    for log in recent_logs:
+        users_by_id[log.user_id] = log.user
+        activity_days_by_user[log.user_id].add(get_local_date(log.logged_at))
+
+    eligible_users = [
+        users_by_id[user_id]
+        for user_id, activity_days in activity_days_by_user.items()
+        if len(activity_days) >= INSIGHT_MIN_ACTIVITY_DAYS
+    ]
+    eligible_users.sort(key=lambda user: user.id)
+    if user_limit is not None:
+        eligible_users = eligible_users[:user_limit]
+
+    summary = ScheduledInsightSummary()
+    stale_before = now - timedelta(hours=INSIGHT_CACHE_HOURS)
+
+    for user in eligible_users:
+        for language_code in SCHEDULED_INSIGHT_LANGUAGE_CODES:
+            summary.processed += 1
+            latest_insight = get_latest_weekly_insight_record(user, period_start, period_end, language_code)
+            if latest_insight and latest_insight.generated_at >= stale_before:
+                summary.cached += 1
+                continue
+
+            try:
+                payload = get_weekly_insight(user, language_hint=language_code)
+            except GroqServiceError:
+                summary.failed += 1
+                continue
+
+            if not payload.get("available"):
+                summary.skipped += 1
+            elif payload.get("cached"):
+                summary.cached += 1
+            else:
+                summary.generated += 1
+                if language_code == INSIGHT_NOTIFICATION_LANGUAGE_CODE:
+                    latest_insight = get_latest_weekly_insight_record(user, period_start, period_end, language_code)
+                    if latest_insight is not None:
+                        sync_dashboard_notification_for_weekly_insight(
+                            latest_insight,
+                            now=now,
+                            mark_unread=True,
+                        )
+                        summary.notifications_synced += 1
+
+    return summary

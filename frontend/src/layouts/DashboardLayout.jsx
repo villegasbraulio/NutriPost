@@ -1,13 +1,15 @@
 import { motion } from "framer-motion";
-import { Bot, ClipboardList, Dumbbell, Home, Salad, UserCircle2 } from "lucide-react";
+import { BellRing, Bot, ClipboardList, Dumbbell, Home, Salad, UserCircle2 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../hooks/useLanguage";
+import { useUnreadNotificationsCount } from "../hooks/useUnreadNotificationsCount";
 
 export function DashboardLayout() {
   const { user } = useAuth();
   const { isSpanish } = useLanguage();
+  const { count: unreadNotificationsCount } = useUnreadNotificationsCount();
   const navigation = [
     { to: "/dashboard", label: isSpanish ? "Inicio" : "Dashboard", icon: Home },
     { to: "/assistant", label: "NutriCoach", icon: Bot },
@@ -21,11 +23,15 @@ export function DashboardLayout() {
         subtitle: `Recuperate mejor${user?.first_name ? `, ${user.first_name}` : ""}`,
         logActivity: "Cargar actividad",
         logFood: "Cargar comida",
+        notifications: "Notificaciones",
+        unreadNotifications: "sin leer",
       }
     : {
         subtitle: `Recover smarter${user?.first_name ? `, ${user.first_name}` : ""}`,
         logActivity: "Log Activity",
         logFood: "Log Food",
+        notifications: "Notifications",
+        unreadNotifications: "unread",
       };
 
   return (
@@ -37,6 +43,18 @@ export function DashboardLayout() {
             <p className="text-sm text-textMuted">{copy.subtitle}</p>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <NavLink
+              to="/dashboard#dashboard-notifications"
+              className="relative flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 px-4 py-2 text-sm text-textMuted transition hover:border-white/20 hover:text-textPrimary sm:w-auto"
+            >
+              <BellRing className="h-4 w-4" />
+              {copy.notifications}
+              {unreadNotificationsCount > 0 ? (
+                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-background">
+                  {unreadNotificationsCount}
+                </span>
+              ) : null}
+            </NavLink>
             <NavLink
               to="/activities/log"
               className="flex w-full items-center justify-center rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-background transition hover:bg-primary/90 sm:w-auto"
@@ -57,6 +75,7 @@ export function DashboardLayout() {
         <nav className="glass-panel flex max-w-full gap-2 overflow-x-auto rounded-3xl p-2 pb-3 lg:w-64 lg:shrink-0 lg:flex-col lg:self-start lg:pb-2">
           {navigation.map((item) => {
             const Icon = item.icon;
+            const isDashboardEntry = item.to === "/dashboard";
             return (
               <NavLink
                 key={item.to}
@@ -71,6 +90,11 @@ export function DashboardLayout() {
               >
                 <Icon className="h-4 w-4" />
                 {item.label}
+                {isDashboardEntry && unreadNotificationsCount > 0 ? (
+                  <span className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-background">
+                    {unreadNotificationsCount}
+                  </span>
+                ) : null}
               </NavLink>
             );
           })}

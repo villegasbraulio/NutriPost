@@ -141,6 +141,7 @@ class ActivityLogSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
     recommendation = serializers.SerializerMethodField()
+    post_workout_workflow = serializers.SerializerMethodField()
     timing_window_minutes = serializers.SerializerMethodField()
     timing_expires_at = serializers.SerializerMethodField()
 
@@ -166,6 +167,7 @@ class ActivityLogSerializer(serializers.ModelSerializer):
             "timing_window_minutes",
             "timing_expires_at",
             "recommendation",
+            "post_workout_workflow",
         )
         read_only_fields = (
             "id",
@@ -174,6 +176,7 @@ class ActivityLogSerializer(serializers.ModelSerializer):
             "timing_window_minutes",
             "timing_expires_at",
             "recommendation",
+            "post_workout_workflow",
         )
 
     def get_recommendation(self, obj: ActivityLog):
@@ -186,6 +189,15 @@ class ActivityLogSerializer(serializers.ModelSerializer):
         recommendation_cache = self.context.get("recommendation_cache", {})
         recommendation = recommendation_cache.get(obj.pk) or get_or_create_meal_recommendation(obj)
         return MealRecommendationSerializer(recommendation).data
+
+    def get_post_workout_workflow(self, obj: ActivityLog):
+        from apps.nutrition.serializers import PostWorkoutWorkflowSerializer
+        from apps.nutrition.services import sync_post_workout_workflow
+
+        workflow = getattr(obj, "post_workout_workflow", None)
+        if workflow is None:
+            workflow = sync_post_workout_workflow(obj)
+        return PostWorkoutWorkflowSerializer(workflow).data
 
     def get_timing_window_minutes(self, obj: ActivityLog):
         return TIMING_WINDOW_MINUTES

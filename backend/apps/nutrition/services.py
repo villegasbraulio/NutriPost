@@ -8,7 +8,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from apps.activities.models import ActivityLog
-from apps.activities.services import TIMING_WINDOW_MINUTES
+from apps.activities.services import TIMING_WINDOW_MINUTES, calculate_timing_expires_at
 from apps.core.ai_client import GroqServiceError, get_model
 from apps.users.services import get_existing_daily_goal, sync_daily_goal
 
@@ -21,7 +21,7 @@ from .catalog import (
     preferred_source_for_food_type,
     search_food_catalog,
 )
-from .models import DailyGoal, FoodLog, MealRecommendation
+from .models import DailyGoal, FoodLog, MealRecommendation, PostWorkoutWorkflow
 
 POST_WORKOUT_NOTES = "Based on ISSN 2017 and ACSM/AND/DC 2016 position stands."
 PROTEIN_MULTIPLIERS = {
@@ -293,11 +293,181 @@ def recommendation_is_current(recommendation: MealRecommendation, targets: dict[
     )
 
 
+def get_recovery_food_log_for_activity(activity_log: ActivityLog) -> FoodLog | None:
+    """Return the earliest logged meal inside the post-workout recovery window."""
+
+    timing_expires_at = calculate_timing_expires_at(activity_log.logged_at, TIMING_WINDOW_MINUTES)
+    return (
+        FoodLog.objects.filter(
+            user=activity_log.user,
+            logged_at__gte=activity_log.logged_at,
+            logged_at__lte=timing_expires_at,
+        )
+        .order_by("logged_at", "id")
+        .first()
+    )
+
+
+def build_post_workout_reminder_message(
+    activity_log: ActivityLog,
+    recommendation: MealRecommendation | None = None,
+) -> str:
+    """Create a ready-to-send reminder message from the current recommendation snapshot."""
+
+    recommendation = recommendation or getattr(activity_log, "meal_recommendation", None)
+    if recommendation is None:
+        return (
+            f"You finished {activity_log.activity_type.name.lower()} and your recovery window has passed. "
+            "Log a recovery meal to keep your post-workout plan on track."
+        )
+
+    target_calories = round(float(recommendation.calories_target))
+    target_protein = round(float(recommendation.protein_target_g))
+    target_carbs = round(float(recommendation.carbs_target_g))
+    top_foods = ", ".join(food["name"] for food in recommendation.recommended_foods[:3]) or "your recovery meal"
+
+    return (
+        f"You finished {activity_log.activity_type.name.lower()} and your recovery window has passed. "
+        f"Aim for about {target_calories} kcal with {target_protein} g protein and {target_carbs} g carbs. "
+        f"Suggested options: {top_foods}."
+    )
+
+
+def evaluate_post_workout_workflow(
+    workflow: PostWorkoutWorkflow,
+    *,
+    now=None,
+    recommendation: MealRecommendation | None = None,
+) -> PostWorkoutWorkflow:
+    """Refresh workflow state from meal logs and the current recovery deadline."""
+
+    now = now or timezone.now()
+    activity_log = workflow.activity_log
+    completion_log = get_recovery_food_log_for_activity(activity_log)
+
+    if completion_log is not None:
+        workflow.status = PostWorkoutWorkflow.Status.COMPLETED
+        workflow.completed_at = completion_log.logged_at
+        workflow.completed_by_food_log = completion_log
+        workflow.reminder_triggered_at = None
+        workflow.reminder_message = ""
+    elif now >= workflow.reminder_due_at:
+        workflow.status = PostWorkoutWorkflow.Status.REMINDER_DUE
+        workflow.completed_at = None
+        workflow.completed_by_food_log = None
+        workflow.reminder_triggered_at = workflow.reminder_triggered_at or now
+        workflow.reminder_message = build_post_workout_reminder_message(activity_log, recommendation=recommendation)
+    else:
+        workflow.status = PostWorkoutWorkflow.Status.PENDING
+        workflow.completed_at = None
+        workflow.completed_by_food_log = None
+        workflow.reminder_triggered_at = None
+        workflow.reminder_message = ""
+
+    workflow.last_evaluated_at = now
+    workflow.save(
+        update_fields=[
+            "status",
+            "completed_at",
+            "completed_by_food_log",
+            "reminder_triggered_at",
+            "reminder_message",
+            "last_evaluated_at",
+            "updated_at",
+        ]
+    )
+
+    from apps.dashboard.services import sync_dashboard_notification_for_workflow
+
+    sync_dashboard_notification_for_workflow(workflow, now=now)
+    return workflow
+
+
+def sync_post_workout_workflow(
+    activity_log: ActivityLog,
+    *,
+    recommendation: MealRecommendation | None = None,
+    now=None,
+) -> PostWorkoutWorkflow:
+    """Create or update the persisted post-workout workflow for an activity log."""
+
+    workflow, created = PostWorkoutWorkflow.objects.get_or_create(
+        activity_log=activity_log,
+        defaults={
+            "user": activity_log.user,
+            "reminder_due_at": calculate_timing_expires_at(activity_log.logged_at, TIMING_WINDOW_MINUTES),
+        },
+    )
+    due_at = calculate_timing_expires_at(activity_log.logged_at, TIMING_WINDOW_MINUTES)
+    fields_to_update = []
+
+    if workflow.user_id != activity_log.user_id:
+        workflow.user = activity_log.user
+        fields_to_update.append("user")
+    if workflow.reminder_due_at != due_at:
+        workflow.reminder_due_at = due_at
+        fields_to_update.append("reminder_due_at")
+
+    if fields_to_update:
+        workflow.save(update_fields=[*fields_to_update, "updated_at"])
+
+    if created:
+        workflow.refresh_from_db()
+
+    return evaluate_post_workout_workflow(workflow, now=now, recommendation=recommendation)
+
+
+def sync_post_workout_workflows_for_food_log(food_log: FoodLog, *, now=None) -> list[PostWorkoutWorkflow]:
+    """Refresh active workflows that could be satisfied by a newly logged meal."""
+
+    now = now or timezone.now()
+    candidate_workflows = (
+        PostWorkoutWorkflow.objects.filter(
+            user=food_log.user,
+            status__in=(
+                PostWorkoutWorkflow.Status.PENDING,
+                PostWorkoutWorkflow.Status.REMINDER_DUE,
+            ),
+            activity_log__logged_at__lte=food_log.logged_at,
+            reminder_due_at__gte=food_log.logged_at,
+        )
+        .select_related("activity_log", "activity_log__activity_type")
+        .order_by("reminder_due_at", "id")
+    )
+
+    refreshed = []
+    for workflow in candidate_workflows:
+        refreshed.append(evaluate_post_workout_workflow(workflow, now=now))
+    return refreshed
+
+
+def process_due_post_workout_workflows(*, now=None, limit: int | None = None) -> list[PostWorkoutWorkflow]:
+    """Mark pending workflows as reminder-due once their recovery window expires."""
+
+    now = now or timezone.now()
+    queryset = (
+        PostWorkoutWorkflow.objects.filter(
+            status=PostWorkoutWorkflow.Status.PENDING,
+            reminder_due_at__lte=now,
+        )
+        .select_related("activity_log", "activity_log__activity_type")
+        .order_by("reminder_due_at", "id")
+    )
+    if limit is not None:
+        queryset = queryset[:limit]
+
+    refreshed = []
+    for workflow in queryset:
+        refreshed.append(evaluate_post_workout_workflow(workflow, now=now))
+    return refreshed
+
+
 def get_or_create_meal_recommendation(activity_log: ActivityLog) -> MealRecommendation:
     """Create a recommendation by matching recovery macro targets with Open Food Facts foods."""
     targets = calculate_post_workout_targets(activity_log)
     recommendation = getattr(activity_log, "meal_recommendation", None)
     if recommendation and recommendation_is_current(recommendation, targets):
+        sync_post_workout_workflow(activity_log, recommendation=recommendation)
         return recommendation
 
     queries, preference = get_food_search_queries(activity_log)
@@ -329,6 +499,7 @@ def get_or_create_meal_recommendation(activity_log: ActivityLog) -> MealRecommen
                 "generated_at",
             ]
         )
+        sync_post_workout_workflow(activity_log, recommendation=recommendation)
         return recommendation
 
     recommendation = MealRecommendation.objects.create(
@@ -340,6 +511,7 @@ def get_or_create_meal_recommendation(activity_log: ActivityLog) -> MealRecommen
         recommended_foods=ranked,
         generated_at=timezone.now(),
     )
+    sync_post_workout_workflow(activity_log, recommendation=recommendation)
     return recommendation
 
 

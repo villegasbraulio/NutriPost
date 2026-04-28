@@ -25,6 +25,55 @@ class MealRecommendation(models.Model):
         return f"Recommendation for activity #{self.activity_log_id}"
 
 
+class PostWorkoutWorkflow(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        COMPLETED = "completed", "Completed"
+        REMINDER_DUE = "reminder_due", "Reminder Due"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="post_workout_workflows",
+        db_index=True,
+    )
+    activity_log = models.OneToOneField(
+        "activities.ActivityLog",
+        on_delete=models.CASCADE,
+        related_name="post_workout_workflow",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    reminder_due_at = models.DateTimeField(db_index=True)
+    reminder_triggered_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed_by_food_log = models.ForeignKey(
+        "nutrition.FoodLog",
+        on_delete=models.SET_NULL,
+        related_name="completed_post_workout_workflows",
+        null=True,
+        blank=True,
+    )
+    reminder_message = models.TextField(blank=True, default="")
+    last_evaluated_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("status", "reminder_due_at", "-created_at")
+        indexes = [
+            models.Index(fields=("user", "status", "reminder_due_at")),
+            models.Index(fields=("user", "created_at")),
+        ]
+
+    def __str__(self) -> str:
+        return f"Post-workout workflow for activity #{self.activity_log_id}"
+
+
 class FoodLog(models.Model):
     class MealType(models.TextChoices):
         BREAKFAST = "breakfast", "Breakfast"

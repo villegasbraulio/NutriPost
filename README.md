@@ -1,12 +1,25 @@
 # NutriPost
 
-NutriPost es una aplicación full-stack orientada al seguimiento de actividad física, nutrición diaria y recuperación post-entrenamiento. El sistema permite registrar entrenamientos, estimar calorías quemadas con valores MET, calcular objetivos nutricionales personalizados y generar recomendaciones alimentarias a partir de datos reales de productos.
+NutriPost es una aplicación web full-stack para registrar actividad física, nutrición diaria y recuperación post-entrenamiento. Combina cálculo metabólico, recomendaciones nutricionales, dashboards de seguimiento y automatizaciones de producto para convertir datos del usuario en acciones concretas.
 
-El proyecto fue desarrollado como una solución de portfolio profesional, con foco en arquitectura backend, consumo de APIs externas, autenticación segura, experiencia de usuario moderna y funcionalidades asistidas por IA.
+El proyecto fue desarrollado como pieza de portfolio técnico, con foco en arquitectura backend, experiencia de usuario, consumo de APIs externas, integración con IA y automatización de workflows reales dentro del producto.
+
+## Resumen del branch actual
+
+En este branch implementé una capa completa de automatización orientada a recuperación e insights:
+
+- Workflow post-entreno persistido por actividad, con estados `pending`, `completed` y `reminder_due`.
+- Cierre automático del workflow cuando el usuario registra una comida dentro de la ventana de recuperación.
+- Procesamiento programado de workflows vencidos mediante scheduler.
+- Notificaciones in-app para recordatorios post-entreno pendientes.
+- Pregeneración automática de insights semanales para usuarios elegibles.
+- Caché de insights por idioma para evitar mezclar contenido en español e inglés.
+- Notificación in-app de “nuevo insight disponible”.
+- Badge global de notificaciones visible desde cualquier pantalla autenticada.
 
 ## Resumen técnico para CV
 
-Aplicación web full-stack construida con Django REST Framework y React que integra autenticación JWT mediante cookies httpOnly, cálculo de gasto energético con fórmulas nutricionales, análisis de rutinas de gimnasio con IA, búsqueda de alimentos en Open Food Facts y dashboards interactivos para seguimiento de progreso.
+Aplicación web full-stack construida con Django REST Framework y React que integra autenticación JWT con cookies httpOnly, cálculo de gasto energético con fórmulas nutricionales, análisis de rutinas de gimnasio con IA, búsqueda de alimentos en Open Food Facts, dashboards interactivos y automatizaciones backend programadas para recuperación post-entreno e insights semanales.
 
 ## Stack principal
 
@@ -18,13 +31,15 @@ Aplicación web full-stack construida con Django REST Framework y React que inte
 | Base de datos | SQLite en desarrollo |
 | IA y datos externos | Groq API, Open Food Facts API |
 | Testing | pytest, pytest-django |
+| Scheduler | Cron job en Render + comandos de management de Django |
+| CI | GitHub Actions para testing, linting y build |
 
 ## Funcionalidades principales
 
 - Registro, login, logout y refresh de sesión con JWT almacenado en cookies httpOnly.
 - Perfil de usuario con peso, altura, edad, género, nivel de actividad y objetivo nutricional.
-- Cálculo de BMR y calorías diarias totales como BMR × multiplicador de actividad TDEE.
-- Registro de actividades físicas con cálculo automático de calorías netas mediante valores MET.
+- Cálculo de BMR y TDEE con multiplicadores por nivel de actividad.
+- Registro de actividades físicas con cálculo automático de calorías netas usando valores MET.
 - Catálogo inicial de más de 30 tipos de actividad física.
 - Gestión de rutinas de gimnasio con ejercicios estructurados, duración estimada, grupos musculares y MET ajustado.
 - Parsing de rutinas desde texto libre, imágenes JPG/PNG/WEBP, PDFs con texto, PDFs con imágenes embebidas y archivos TXT/CSV/Markdown.
@@ -32,9 +47,14 @@ Aplicación web full-stack construida con Django REST Framework y React que inte
 - Recomendaciones post-entrenamiento basadas en objetivo personal, tipo de actividad, timing de recuperación y macronutrientes.
 - Búsqueda de alimentos con datos normalizados desde Open Food Facts.
 - Registro de comidas y visualización de calorías, proteínas, carbohidratos y grasas consumidas.
-- Dashboard con resumen por período, progreso semanal, racha de actividad y métricas recientes.
+- Dashboard con resumen por período, progreso semanal, racha de actividad, métricas recientes y notificaciones in-app.
 - Asistente conversacional NutriCoach con contexto del usuario, actividad del día y registros nutricionales.
 - Generación de insights semanales asistidos por IA cuando existe suficiente historial de actividad.
+- Pregeneración automática de insights semanales mediante scheduler, con caché por idioma para un dashboard bilingüe.
+- Workflow post-entreno automatizado con seguimiento persistido, cierre automático al registrar comida y recordatorios listos para procesamiento programado.
+- Notificaciones in-app en dashboard para recordatorios de recuperación pendientes y nuevos insights semanales disponibles.
+- Badge global de notificaciones en el layout autenticado para visibilidad inmediata desde cualquier pantalla.
+- Pipeline de CI con GitHub Actions para ejecutar tests de backend, lint del frontend y build en cada push o pull request.
 - Cuenta demo y comandos de seed para mostrar datos realistas en un entorno local.
 
 ## Arquitectura
@@ -45,14 +65,15 @@ NutriPost
 │   └── React + Vite
 │       ├── páginas protegidas por sesión
 │       ├── dashboard, nutrición, actividades, rutinas y asistente
-│       └── servicios Axios para consumir la API REST
+│       ├── hooks y servicios para consumo de API
+│       └── componentes reutilizables y visualizaciones
 │
 └── backend/
     └── Django + DRF
         ├── apps.users        autenticación, perfil y objetivos diarios
         ├── apps.activities   actividades, rutinas, MET y parsing asistido por IA
-        ├── apps.nutrition    alimentos, comidas, recomendaciones y macros
-        ├── apps.dashboard    métricas, progreso, rachas e insights
+        ├── apps.nutrition    alimentos, comidas, recomendaciones y workflows post-entreno
+        ├── apps.dashboard    métricas, progreso, insights y notificaciones
         └── apps.assistant    conversación contextual con NutriCoach
 ```
 
@@ -69,7 +90,8 @@ API REST Django
   │
   ├── ORM / SQLite
   ├── Open Food Facts API
-  └── Groq API
+  ├── Groq API
+  └── Scheduler / comandos programados
 ```
 
 ## Módulos destacados
@@ -93,7 +115,7 @@ El módulo de rutinas permite:
 - vincular una rutina a un registro de actividad;
 - conservar historial aunque una rutina sea eliminada.
 
-### Nutrición y recomendaciones
+### Nutrición y recuperación
 
 NutriPost calcula objetivos post-entrenamiento en función de:
 
@@ -103,6 +125,23 @@ NutriPost calcula objetivos post-entrenamiento en función de:
 - ventana de recuperación configurada.
 
 Luego busca alimentos candidatos en Open Food Facts, normaliza calorías y macronutrientes por 100 g, y rankea opciones según cercanía al objetivo nutricional.
+
+Además, cada actividad crea un workflow persistido de recuperación que:
+
+- queda pendiente mientras la ventana post-entreno sigue abierta;
+- se completa automáticamente si el usuario registra una comida a tiempo;
+- pasa a estado `reminder_due` si la ventana vence sin una comida asociada.
+
+### Automatizaciones y scheduler
+
+La automatización del producto se apoya en comandos de Django ejecutados por scheduler:
+
+- procesamiento periódico de workflows post-entreno vencidos;
+- creación y sincronización de notificaciones in-app;
+- pregeneración de insights semanales para usuarios elegibles;
+- creación de notificaciones cuando un insight nuevo ya está disponible.
+
+Esto permite mover lógica importante fuera del “clic del usuario” y convertir el backend en un sistema que también reacciona con el paso del tiempo.
 
 ### IA aplicada
 
@@ -136,8 +175,10 @@ Todos los endpoints funcionales se exponen bajo `/api/v1/`.
 | Nutrición | `/nutrition/recommendations/{activity_log_id}/` | Recomendación post-entrenamiento |
 | Nutrición | `/nutrition/foods/search/` | Búsqueda de alimentos |
 | Nutrición | `/nutrition/food-logs/` | Registro y listado de comidas |
+| Nutrición | `/nutrition/post-workout-workflows/` | Estado del workflow post-entreno |
 | Nutrición | `/nutrition/parse-meal/` | Parsing de comida con IA |
 | Dashboard | `/dashboard/summary/` | Resumen de calorías, macros y actividad |
+| Dashboard | `/dashboard/notifications/` | Notificaciones in-app del usuario |
 | Dashboard | `/dashboard/progress/` | Progreso semanal |
 | Dashboard | `/dashboard/streak/` | Racha de actividad |
 | Dashboard | `/dashboard/insights/` | Insight semanal con IA |
@@ -202,8 +243,8 @@ El archivo `.env.example` incluye las variables necesarias para ejecutar el proy
 | `CSRF_TRUSTED_ORIGINS` | Orígenes confiables para CSRF |
 | `JWT_ACCESS_COOKIE` | Nombre de la cookie del access token |
 | `JWT_REFRESH_COOKIE` | Nombre de la cookie del refresh token |
-| `JWT_COOKIE_SECURE` | Configuración secure para cookies |
-| `JWT_COOKIE_SAMESITE` | Política SameSite de cookies |
+| `JWT_COOKIE_SECURE` | Configuración `secure` para cookies |
+| `JWT_COOKIE_SAMESITE` | Política `SameSite` de cookies |
 | `OFF_API_BASE_URL` | URL base de Open Food Facts |
 | `GROQ_API_BASE_URL` | URL base de Groq |
 | `GROQ_MODEL_NAME` | Modelo de texto para IA |
@@ -220,7 +261,7 @@ Usuario: demo
 Contraseña: DemoPass123!
 ```
 
-La cuenta demo incluye historial de actividad, registros de comidas y datos suficientes para visualizar el dashboard.
+La cuenta demo incluye historial de actividad, registros de comidas y datos suficientes para visualizar el dashboard, las recomendaciones y los insights.
 
 ## Scripts útiles
 
@@ -231,6 +272,8 @@ python manage.py migrate
 python manage.py seed_activities
 python manage.py seed_demo_user
 python manage.py runserver
+python manage.py run_scheduled_jobs
+python manage.py run_scheduled_jobs --post-workout-limit 200 --insight-user-limit 25
 pytest
 ```
 
@@ -244,7 +287,7 @@ npm run lint
 
 ## Testing
 
-El proyecto incluye configuración de `pytest` y `pytest-django`, con tests orientados a servicios de dominio, especialmente cálculos y lógica de actividades.
+El proyecto incluye configuración de `pytest` y `pytest-django`, con tests orientados a servicios de dominio, scheduler, workflows post-entreno, insights y notificaciones.
 
 Para ejecutar la suite:
 
@@ -253,20 +296,60 @@ cd backend
 pytest
 ```
 
+## CI con GitHub Actions
+
+El repositorio incluye un workflow de GitHub Actions en [.github/workflows/ci.yml](./.github/workflows/ci.yml) que se ejecuta en cada `push`, `pull_request` y ejecución manual.
+
+El pipeline corre dos jobs en paralelo:
+
+- `Backend Tests`: instala dependencias de Python y ejecuta `pytest` dentro de `backend/`.
+- `Frontend Lint And Build`: instala dependencias de Node, ejecuta `npm run lint` y luego `npm run build` dentro de `frontend/`.
+
+Esto permite detectar regresiones de backend, errores de estilo en frontend y problemas de compilación antes de mergear cambios.
+
+## Despliegue y scheduler en producción
+
+El proyecto deja preparado un `cron job` de Render en [render.yaml](./render.yaml) para ejecutar:
+
+```bash
+python manage.py run_scheduled_jobs --post-workout-limit 200 --insight-user-limit 25
+```
+
+Este scheduler corre cada 10 minutos y hoy:
+
+- procesa workflows post-entreno vencidos para marcarlos como `reminder_due`;
+- crea o sincroniza notificaciones in-app para esos recordatorios;
+- pregenera insights semanales para usuarios elegibles;
+- genera notificaciones de “nuevo insight disponible” cuando se crea contenido nuevo.
+
+Cuando un workflow entra en `reminder_due`, el backend crea una notificación persistida para el dashboard. Si el usuario luego registra una comida dentro de esa sesión, la notificación se marca como leída automáticamente y deja de aparecer como pendiente.
+
+Los insights semanales se cachean por idioma (`en` y `es`) para evitar mezclar contenido entre localizaciones distintas. Eso permite que el scheduler los deje listos de antemano sin romper la experiencia bilingüe del dashboard.
+
 ## Decisiones técnicas relevantes
 
 - Separación por apps de dominio en Django para mantener responsabilidades claras.
-- Capa de servicios para cálculos nutricionales, integración con APIs externas y lógica asistida por IA.
+- Capa de servicios para cálculos nutricionales, integración con APIs externas, workflows programados y lógica asistida por IA.
 - Autenticación basada en cookies httpOnly para evitar exposición directa de tokens en el frontend.
 - Rotación y blacklist de refresh tokens para mejorar el control de sesión.
 - Normalización de respuestas externas antes de persistir o exponer datos al frontend.
 - Uso de `django-filter`, ordering y search en recursos listables.
-- Manejo centralizado de errores de API mediante un exception handler personalizado.
+- Manejo centralizado de errores de API mediante un `exception handler` personalizado.
 - Frontend organizado en páginas, hooks, servicios y componentes reutilizables.
+- Automatizaciones desacopladas de la UI mediante comandos de Django y scheduler externo.
 
 ## Alcance actual
 
-NutriPost está preparado para ejecución local como proyecto full-stack de portfolio. El foco actual está en mostrar una experiencia funcional end-to-end: autenticación, carga de datos, procesamiento de actividad, nutrición, visualización de métricas e integración con IA.
+NutriPost está preparado para ejecución local y despliegue como proyecto full-stack de portfolio. El foco actual está en mostrar una experiencia funcional end-to-end con automatización real de producto:
+
+- autenticación;
+- carga y consulta de datos;
+- procesamiento de actividad y nutrición;
+- recomendaciones y recuperación post-entreno;
+- visualización de métricas;
+- notificaciones in-app;
+- integración con IA;
+- procesos programados de backend.
 
 ## Próximas mejoras posibles
 

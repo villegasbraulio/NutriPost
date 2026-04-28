@@ -8,17 +8,19 @@ from rest_framework.serializers import ValidationError
 from apps.activities.models import ActivityLog
 
 from .filters import FoodLogFilter
-from .models import FoodLog
+from .models import FoodLog, PostWorkoutWorkflow
 from .serializers import (
     FoodLogSerializer,
     MealRecommendationSerializer,
     ParseMealSerializer,
     ParsedMealResponseSerializer,
+    PostWorkoutWorkflowSerializer,
 )
 from .services import (
     ensure_daily_goal,
     get_or_create_meal_recommendation,
     parse_meal_from_text,
+    sync_post_workout_workflows_for_food_log,
 )
 from .catalog import search_food_catalog
 
@@ -63,6 +65,24 @@ class FoodLogViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.Ge
     def perform_create(self, serializer):
         food_log = serializer.save(user=self.request.user)
         ensure_daily_goal(self.request.user, food_log.logged_at.date())
+        sync_post_workout_workflows_for_food_log(food_log)
+
+
+class PostWorkoutWorkflowViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = PostWorkoutWorkflowSerializer
+    ordering = ("status", "reminder_due_at", "-created_at")
+
+    def get_queryset(self):
+        queryset = (
+            PostWorkoutWorkflow.objects.filter(user=self.request.user)
+            .select_related("activity_log", "activity_log__activity_type", "completed_by_food_log")
+            .order_by(*self.ordering)
+        )
+        status_filter = self.request.query_params.get("status", "").strip()
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        return queryset
 
 
 class NutritionAIViewSet(viewsets.GenericViewSet):

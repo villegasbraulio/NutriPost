@@ -5,8 +5,14 @@ from rest_framework.routers import DefaultRouter
 
 from apps.activities.views import ActivityLogViewSet, ActivityTypeViewSet, GymRoutineViewSet
 from apps.assistant.views import AssistantViewSet
-from apps.dashboard.views import DashboardViewSet
-from apps.nutrition.views import FoodLogViewSet, FoodSearchViewSet, MealRecommendationViewSet, NutritionAIViewSet
+from apps.dashboard.views import DashboardNotificationViewSet, DashboardViewSet
+from apps.nutrition.views import (
+    FoodLogViewSet,
+    FoodSearchViewSet,
+    MealRecommendationViewSet,
+    NutritionAIViewSet,
+    PostWorkoutWorkflowViewSet,
+)
 from apps.users.views import AuthViewSet
 
 router = DefaultRouter()
@@ -22,7 +28,9 @@ router.register(
 )
 router.register("nutrition/foods", FoodSearchViewSet, basename="nutrition-foods")
 router.register("nutrition/food-logs", FoodLogViewSet, basename="food-logs")
+router.register("nutrition/post-workout-workflows", PostWorkoutWorkflowViewSet, basename="post-workout-workflows")
 router.register("dashboard", DashboardViewSet, basename="dashboard")
+router.register("dashboard/notifications", DashboardNotificationViewSet, basename="dashboard-notifications")
 
 
 def health_check(_request):

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { dispatchUnreadNotificationsCount } from "./useUnreadNotificationsCount";
 import { dashboardService } from "../services/dashboardService";
 import { getLocalDateString } from "../utils/date";
 
@@ -19,6 +20,7 @@ const EMPTY_SUMMARY = {
     carbs_goal_g: 0,
     fat_goal_g: 0,
   },
+  unread_notifications_count: 0,
   recent_activities: [],
   today: {
     date: getLocalDateString(),
@@ -99,8 +101,18 @@ function normalizeSummary(summary, period) {
       carbs_g: toNumber(source.today?.carbs_g),
       fat_g: toNumber(source.today?.fat_g),
     },
+    unread_notifications_count: toNumber(source.unread_notifications_count),
     recent_activities: Array.isArray(source.recent_activities) ? source.recent_activities : [],
   };
+}
+
+function normalizeNotifications(payload) {
+  const items = Array.isArray(payload?.results) ? payload.results : [];
+  return items.map((item) => ({
+    ...item,
+    activity_log_id: toNumber(item.activity_log_id),
+    is_read: Boolean(item.is_read),
+  }));
 }
 
 function delay(ms) {
@@ -131,6 +143,7 @@ export function useDashboard(period = "7d") {
   const [streak, setStreak] = useState(0);
   const [progress, setProgress] = useState([]);
   const [insight, setInsight] = useState(null);
+  const [notifications, setNotifications] = useState([]);
   const [insightLoading, setInsightLoading] = useState(true);
   const [loading, setLoading] = useState(true);
 
@@ -144,6 +157,39 @@ export function useDashboard(period = "7d") {
     } finally {
       setInsightLoading(false);
     }
+  }, []);
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      const payload = await withRetry(() => dashboardService.getNotifications({ unread: true }));
+      const items = normalizeNotifications(payload);
+      setNotifications(items);
+      dispatchUnreadNotificationsCount(items.length);
+    } catch {
+      setNotifications([]);
+      dispatchUnreadNotificationsCount(0);
+    }
+  }, []);
+
+  const dismissNotification = useCallback(async (notificationId) => {
+    await dashboardService.dismissNotification(notificationId);
+    let nextCount = 0;
+    setNotifications((current) => {
+      const nextItems = current.filter((item) => item.id !== notificationId);
+      nextCount = nextItems.length;
+      return nextItems;
+    });
+    setSummary((current) => {
+      if (!current) {
+        return current;
+      }
+
+      return {
+        ...current,
+        unread_notifications_count: Math.max((current.unread_notifications_count || 0) - 1, 0),
+      };
+    });
+    dispatchUnreadNotificationsCount(nextCount);
   }, []);
 
   useEffect(() => {
@@ -178,10 +224,22 @@ export function useDashboard(period = "7d") {
 
     load();
     loadInsight();
+    loadNotifications();
     return () => {
       active = false;
     };
-  }, [loadInsight, period]);
+  }, [loadInsight, loadNotifications, period]);
 
-  return { summary, streak, progress, insight, insightLoading, loading, refreshInsight: loadInsight };
+  return {
+    summary,
+    streak,
+    progress,
+    insight,
+    notifications,
+    insightLoading,
+    loading,
+    refreshInsight: loadInsight,
+    refreshNotifications: loadNotifications,
+    dismissNotification,
+  };
 }

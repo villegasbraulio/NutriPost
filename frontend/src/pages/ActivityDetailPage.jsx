@@ -1,4 +1,4 @@
-import { Dumbbell, Flame, UtensilsCrossed } from "lucide-react";
+import { AlarmClock, BellRing, CheckCircle2, Dumbbell, Flame, UtensilsCrossed } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
@@ -11,6 +11,30 @@ import { useLanguage } from "../hooks/useLanguage";
 import { activityService } from "../services/activityService";
 import { nutritionService } from "../services/nutritionService";
 import { formatDateTime } from "../utils/date";
+
+function getWorkflowTone(status) {
+  if (status === "completed") {
+    return {
+      icon: CheckCircle2,
+      badge: "bg-primary/10 text-primary",
+      panel: "border-primary/20 bg-primary/5",
+    };
+  }
+
+  if (status === "reminder_due") {
+    return {
+      icon: BellRing,
+      badge: "bg-amber-500/10 text-amber-300",
+      panel: "border-amber-500/20 bg-amber-500/5",
+    };
+  }
+
+  return {
+    icon: AlarmClock,
+    badge: "bg-secondary/10 text-secondary",
+    panel: "border-secondary/20 bg-secondary/5",
+  };
+}
 
 export function ActivityDetailPage() {
   const { isSpanish } = useLanguage();
@@ -27,12 +51,23 @@ export function ActivityDetailPage() {
         sectionTag: "Detalle de actividad",
         routine: "Rutina",
         caloriesBurned: "Calorias gastadas",
+        workflowTitle: "Workflow post-entreno",
+        workflowPending: "Seguimiento activo",
+        workflowCompleted: "Recuperacion registrada",
+        workflowReminderDue: "Recordatorio listo",
+        workflowPendingText: "Todavia estas dentro de la ventana de recuperacion. Cuando cargues una comida a tiempo, este workflow se completa solo.",
+        workflowCompletedText: "Registraste una comida dentro de la ventana recomendada. El workflow se cerro automaticamente.",
+        workflowReminderText: "No se detecto una comida dentro de la ventana. El sistema dejo listo un recordatorio con la accion recomendada.",
+        workflowDueAt: "Vence",
+        workflowCompletedAt: "Completado",
+        workflowLinkedMeal: "Comida asociada",
         proteinTarget: "Objetivo de proteina",
         carbTarget: "Objetivo de carbohidratos",
         fatCeiling: "Tope de grasas",
         foodsTitle: "Alimentos recomendados",
         foodsText: "Ajustados a tus objetivos de recuperacion usando Open Food Facts.",
         logFoods: "Cargar estas comidas",
+        recoveryLoggedToast: "Comida de recuperacion registrada a tiempo.",
       }
     : {
         loadError: "Could not load this activity.",
@@ -41,12 +76,23 @@ export function ActivityDetailPage() {
         sectionTag: "Activity detail",
         routine: "Routine",
         caloriesBurned: "Calories burned",
+        workflowTitle: "Post-workout workflow",
+        workflowPending: "Workflow active",
+        workflowCompleted: "Recovery logged",
+        workflowReminderDue: "Reminder ready",
+        workflowPendingText: "You are still inside the recovery window. As soon as you log a meal on time, this workflow closes automatically.",
+        workflowCompletedText: "You logged a meal inside the recommended window. The workflow was completed automatically.",
+        workflowReminderText: "No meal was detected inside the recovery window. The system prepared a reminder with the recommended next action.",
+        workflowDueAt: "Due at",
+        workflowCompletedAt: "Completed",
+        workflowLinkedMeal: "Linked meal",
         proteinTarget: "Protein target",
         carbTarget: "Carb target",
         fatCeiling: "Fat ceiling",
         foodsTitle: "Recommended foods",
         foodsText: "Matched to your recovery targets using Open Food Facts.",
         logFoods: "Log these foods",
+        recoveryLoggedToast: "Recovery meal logged on time.",
       };
 
   useEffect(() => {
@@ -77,22 +123,39 @@ export function ActivityDetailPage() {
       return;
     }
 
-    const expiresAt = new Date(activityLog.timing_expires_at).getTime();
-    if (Date.now() < expiresAt) {
-      toast(copy.eatSoon, { id: `recovery-window-${activityLog.id}` });
-    } else {
-      toast(copy.windowPassed, {
+    const workflow = activityLog.post_workout_workflow || activityLog.recommendation?.workflow;
+    if (workflow?.status === "completed") {
+      toast.success(copy.recoveryLoggedToast, { id: `recovery-window-${activityLog.id}` });
+    } else if (workflow?.status === "reminder_due") {
+      toast(workflow.reminder_message || copy.windowPassed, {
         id: `recovery-window-${activityLog.id}`,
       });
+    } else {
+      toast(copy.eatSoon, { id: `recovery-window-${activityLog.id}` });
     }
     notifiedActivityRef.current = activityLog.id;
-  }, [activityLog, copy.eatSoon, copy.windowPassed]);
+  }, [activityLog, copy.eatSoon, copy.recoveryLoggedToast, copy.windowPassed]);
 
   if (loading || !activityLog) {
     return <LoadingSkeleton className="h-[640px] rounded-[32px]" />;
   }
 
   const recommendation = activityLog.recommendation;
+  const workflow = activityLog.post_workout_workflow || recommendation.workflow;
+  const workflowTone = getWorkflowTone(workflow?.status);
+  const WorkflowIcon = workflowTone.icon;
+  const workflowTitle =
+    workflow?.status === "completed"
+      ? copy.workflowCompleted
+      : workflow?.status === "reminder_due"
+        ? copy.workflowReminderDue
+        : copy.workflowPending;
+  const workflowText =
+    workflow?.status === "completed"
+      ? copy.workflowCompletedText
+      : workflow?.status === "reminder_due"
+        ? copy.workflowReminderText
+        : copy.workflowPendingText;
 
   return (
     <div className="space-y-6">
@@ -130,6 +193,37 @@ export function ActivityDetailPage() {
         timingWindowMinutes={activityLog.timing_window_minutes}
         timingExpiresAt={activityLog.timing_expires_at}
       />
+
+      <section className={`glass-panel rounded-[32px] border p-6 ${workflowTone.panel}`}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-sm uppercase tracking-[0.24em] text-textMuted">{copy.workflowTitle}</p>
+            <div className={`mt-3 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${workflowTone.badge}`}>
+              <WorkflowIcon className="h-4 w-4" />
+              {workflowTitle}
+            </div>
+            <p className="mt-4 text-textMuted">{workflow?.reminder_message || workflowText}</p>
+          </div>
+
+          <div className="grid gap-3 sm:min-w-[240px]">
+            <div className="rounded-3xl border border-white/10 bg-background/40 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-textMuted">{copy.workflowDueAt}</p>
+              <p className="mt-2 font-semibold">{formatDateTime(workflow?.reminder_due_at || activityLog.timing_expires_at)}</p>
+            </div>
+            {workflow?.completed_at ? (
+              <div className="rounded-3xl border border-white/10 bg-background/40 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.2em] text-textMuted">{copy.workflowCompletedAt}</p>
+                <p className="mt-2 font-semibold">{formatDateTime(workflow.completed_at)}</p>
+                {workflow.completed_by_food_log ? (
+                  <p className="mt-2 text-sm text-textMuted">
+                    {copy.workflowLinkedMeal}: #{workflow.completed_by_food_log}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
         <MacroRing label={copy.proteinTarget} value={Number(recommendation.protein_target_g)} goal={Number(recommendation.protein_target_g)} color="#10B981" />

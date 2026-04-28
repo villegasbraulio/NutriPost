@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { CalendarDays, Flame, Salad, TrendingUp } from "lucide-react";
+import { BellRing, CalendarDays, Flame, Salad, TrendingUp, X } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -24,7 +24,7 @@ import { formatDateLabel } from "../utils/date";
 export function DashboardPage() {
   const { user } = useAuth();
   const { isSpanish, locale } = useLanguage();
-  const { summary, streak, progress, insight, insightLoading, loading, refreshInsight } = useDashboard("7d");
+  const { summary, streak, progress, insight, notifications, insightLoading, loading, refreshInsight, dismissNotification } = useDashboard("7d");
   const copy = isSpanish
     ? {
         sectionTag: "Inicio",
@@ -50,6 +50,12 @@ export function DashboardPage() {
         viewAll: "Ver todo",
         noRecentTitle: "Todavia no hay actividad reciente",
         noRecentText: "Cuando cargues un entrenamiento, aparecera aqui con calorias y detalles de recuperacion.",
+        remindersTitle: "Recordatorios de recuperacion",
+        remindersText: "Estos avisos se generan automaticamente cuando una ventana post-entreno vence sin comida registrada.",
+        remindersEmpty: "No hay recordatorios pendientes.",
+        openActivity: "Abrir actividad",
+        dismissReminder: "Descartar",
+        unreadBadge: "sin leer",
         protein: "Proteina",
         carbs: "Carbohidratos",
         fat: "Grasas",
@@ -76,6 +82,12 @@ export function DashboardPage() {
         viewAll: "View all",
         noRecentTitle: "No recent activity yet",
         noRecentText: "Once you log a workout, it will appear here with calories and recovery details.",
+        remindersTitle: "Recovery reminders",
+        remindersText: "These alerts are generated automatically when a post-workout window expires without a logged meal.",
+        remindersEmpty: "No pending reminders right now.",
+        openActivity: "Open activity",
+        dismissReminder: "Dismiss",
+        unreadBadge: "unread",
         protein: "Protein",
         carbs: "Carbs",
         fat: "Fat",
@@ -109,7 +121,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <section className="glass-panel rounded-[32px] p-5 sm:p-6">
+      <section id="dashboard-notifications" className="glass-panel rounded-[32px] p-5 sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.24em] text-primary">{copy.sectionTag}</p>
@@ -123,6 +135,62 @@ export function DashboardPage() {
               day: "numeric",
             }).format(new Date())}
           </div>
+        </div>
+      </section>
+
+      <section className="glass-panel rounded-[32px] p-5 sm:p-6">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">{copy.remindersTitle}</h2>
+            <p className="text-sm text-textMuted">{copy.remindersText}</p>
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-300">
+            <BellRing className="h-4 w-4" />
+            {summary.unread_notifications_count} {copy.unreadBadge}
+          </div>
+        </div>
+        <div className="grid gap-3">
+          {notifications.length ? (
+            notifications.map((notification) => (
+              <div
+                key={notification.id}
+                className="rounded-3xl border border-amber-500/20 bg-amber-500/5 p-4"
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
+                      <BellRing className="h-3.5 w-3.5" />
+                      {notification.title}
+                    </div>
+                    <p className="mt-3 text-lg font-semibold">{notification.activity_name || notification.title}</p>
+                    <p className="mt-2 text-sm text-textMuted">{notification.message}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                    <Link
+                      to={notification.action_url}
+                      className="inline-flex items-center justify-center rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-background"
+                    >
+                      {notification.action_label || copy.openActivity}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void dismissNotification(notification.id);
+                      }}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-textMuted"
+                    >
+                      <X className="h-4 w-4" />
+                      {copy.dismissReminder}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-3xl border border-dashed border-white/10 bg-background/40 p-6 text-center">
+              <p className="font-semibold">{copy.remindersEmpty}</p>
+            </div>
+          )}
         </div>
       </section>
 

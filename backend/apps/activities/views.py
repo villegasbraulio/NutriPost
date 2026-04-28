@@ -14,7 +14,7 @@ from .serializers import (
     RoutineParseTextSerializer,
 )
 from .services import analyze_routine_met, parse_routine_from_file, parse_routine_from_text
-from apps.nutrition.services import get_or_create_meal_recommendation
+from apps.nutrition.services import ensure_daily_goal, get_or_create_meal_recommendation
 
 
 class ActivityTypeViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -48,6 +48,7 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         activity_log = serializer.save(user=self.request.user)
+        ensure_daily_goal(self.request.user, activity_log.logged_at.date())
         recommendation = get_or_create_meal_recommendation(activity_log)
         serializer.context.setdefault("recommendation_cache", {})[activity_log.pk] = recommendation
 
