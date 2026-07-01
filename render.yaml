@@ -26,6 +26,8 @@ services:
           property: connectionString
       - key: FRONTEND_URL
         sync: false
+      - key: PUBLIC_DEMO_ENABLED
+        value: "true"
       - key: GROQ_API_KEY
         sync: false
   - type: cron

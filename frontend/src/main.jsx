@@ -17,7 +17,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Toaster
             position="top-right"
             toastOptions={{
-              className: "border border-white/10 bg-surface text-textPrimary",
+              className: "border border-white/10 bg-surface/95 text-textPrimary shadow-panel backdrop-blur-xl",
             }}
           />
         </AuthProvider>

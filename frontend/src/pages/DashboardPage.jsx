@@ -19,6 +19,7 @@ import { WeeklyInsightCard } from "../components/WeeklyInsightCard";
 import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../hooks/useLanguage";
 import { useDashboard } from "../hooks/useDashboard";
+import { hoverLift, staggerContainer, staggerItem } from "../utils/animations";
 import { formatDateLabel } from "../utils/date";
 
 export function DashboardPage() {
@@ -120,14 +121,25 @@ export function DashboardPage() {
   const hasMacroData = macroData.some((item) => Number(item.value || 0) > 0);
 
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <section id="dashboard-notifications" className="glass-panel rounded-[32px] p-5 sm:p-6">
+    <motion.div
+      variants={staggerContainer}
+      initial="hidden"
+      animate="show"
+      className="space-y-5 sm:space-y-6"
+    >
+      <motion.section
+        id="dashboard-notifications"
+        variants={staggerItem}
+        className="glass-panel noise-mask rounded-[32px] p-5 sm:p-6"
+      >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.24em] text-primary">{copy.sectionTag}</p>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{copy.greeting}</h1>
+            <h1 className="font-display mt-3 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">
+              {copy.greeting}
+            </h1>
           </div>
-          <div className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 px-4 py-3 text-sm text-textMuted sm:w-auto">
+          <div className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-textMuted sm:w-auto">
             <CalendarDays className="h-4 w-4" />
             {new Intl.DateTimeFormat(locale, {
               weekday: "long",
@@ -136,9 +148,9 @@ export function DashboardPage() {
             }).format(new Date())}
           </div>
         </div>
-      </section>
+      </motion.section>
 
-      <section className="glass-panel rounded-[32px] p-5 sm:p-6">
+      <motion.section variants={staggerItem} className="glass-panel rounded-[32px] p-5 sm:p-6">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold">{copy.remindersTitle}</h2>
@@ -151,9 +163,12 @@ export function DashboardPage() {
         </div>
         <div className="grid gap-3">
           {notifications.length ? (
-            notifications.map((notification) => (
-              <div
+            notifications.map((notification, index) => (
+              <motion.div
                 key={notification.id}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
                 className="rounded-3xl border border-amber-500/20 bg-amber-500/5 p-4"
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -184,7 +199,7 @@ export function DashboardPage() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))
           ) : (
             <div className="rounded-3xl border border-dashed border-white/10 bg-background/40 p-6 text-center">
@@ -192,19 +207,21 @@ export function DashboardPage() {
             </div>
           )}
         </div>
-      </section>
+      </motion.section>
 
-      <WeeklyInsightCard insight={insight} loading={insightLoading} onRefresh={refreshInsight} />
+      <motion.div variants={staggerItem}>
+        <WeeklyInsightCard insight={insight} loading={insightLoading} onRefresh={refreshInsight} />
+      </motion.div>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <motion.section variants={staggerItem} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label={copy.burnedToday} value={today.calories_burned || 0} icon={Flame} accent="primary" />
         <StatCard label={copy.consumedToday} value={today.calories_consumed || 0} icon={Salad} accent="secondary" />
         <StatCard label={copy.netBalance} value={today.net_balance || 0} icon={TrendingUp} accent="accent" />
         <StatCard label={copy.dayStreak} value={streak} icon={CalendarDays} accent="secondary" />
-      </section>
+      </motion.section>
 
-      <section className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
-        <motion.div whileHover={{ scale: 1.01 }} className="glass-panel rounded-[32px] p-5 sm:p-6">
+      <motion.section variants={staggerItem} className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+        <motion.div whileHover={hoverLift} className="glass-panel rounded-[32px] p-5 sm:p-6">
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold">{copy.weeklyBurn}</h2>
@@ -229,7 +246,13 @@ export function DashboardPage() {
                   <Tooltip
                     contentStyle={{ background: "#1E293B", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16 }}
                   />
-                  <Bar dataKey="calories_burned" fill="#10B981" radius={[10, 10, 0, 0]} />
+                  <Bar
+                    dataKey="calories_burned"
+                    fill="#10B981"
+                    radius={[10, 10, 0, 0]}
+                    animationDuration={1100}
+                    animationEasing="ease-out"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -245,7 +268,7 @@ export function DashboardPage() {
           </div>
         </motion.div>
 
-        <motion.div whileHover={{ scale: 1.01 }} className="glass-panel rounded-[32px] p-5 sm:p-6">
+        <motion.div whileHover={hoverLift} className="glass-panel rounded-[32px] p-5 sm:p-6">
           <div className="mb-6">
             <h2 className="text-xl font-semibold">{copy.macroSplit}</h2>
             <p className="text-sm text-textMuted">{copy.macroSplitText}</p>
@@ -254,7 +277,16 @@ export function DashboardPage() {
             {hasMacroData ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={macroData} dataKey="value" nameKey="name" innerRadius={70} outerRadius={96} paddingAngle={6}>
+                  <Pie
+                    data={macroData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={70}
+                    outerRadius={96}
+                    paddingAngle={6}
+                    animationDuration={950}
+                    animationBegin={120}
+                  >
                     {macroData.map((entry) => (
                       <Cell key={entry.name} fill={entry.color} />
                     ))}
@@ -287,9 +319,9 @@ export function DashboardPage() {
             ))}
           </div>
         </motion.div>
-      </section>
+      </motion.section>
 
-      <section className="glass-panel rounded-[32px] p-5 sm:p-6">
+      <motion.section variants={staggerItem} className="glass-panel rounded-[32px] p-5 sm:p-6">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold">{copy.recentActivity}</h2>
@@ -301,25 +333,31 @@ export function DashboardPage() {
         </div>
         <div className="grid gap-3">
           {summary.recent_activities.length ? (
-            summary.recent_activities.map((item) => (
-              <Link
+            summary.recent_activities.map((item, index) => (
+              <motion.div
                 key={item.id}
-                to={`/activities/logs/${item.id}`}
-                className="rounded-3xl border border-white/10 bg-background/50 p-4 transition hover:border-primary/40"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
               >
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-semibold">{item.activity}</p>
-                    <p className="text-sm capitalize text-textMuted">
-                      {item.category} • {item.duration_minutes} minutes
-                    </p>
+                <Link
+                  to={`/activities/logs/${item.id}`}
+                  className="block rounded-3xl border border-white/10 bg-background/50 p-4 transition hover:border-primary/40"
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-semibold">{item.activity}</p>
+                      <p className="text-sm capitalize text-textMuted">
+                        {item.category} • {item.duration_minutes} minutes
+                      </p>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <p className="text-lg font-bold text-primary">{Math.round(item.calories_burned)} kcal</p>
+                      <p className="text-sm text-textMuted">{formatDateLabel(item.logged_at, { weekday: "short" })}</p>
+                    </div>
                   </div>
-                  <div className="text-left sm:text-right">
-                    <p className="text-lg font-bold text-primary">{Math.round(item.calories_burned)} kcal</p>
-                    <p className="text-sm text-textMuted">{formatDateLabel(item.logged_at, { weekday: "short" })}</p>
-                  </div>
-                </div>
-              </Link>
+                </Link>
+              </motion.div>
             ))
           ) : (
             <div className="rounded-3xl border border-dashed border-white/10 bg-background/40 p-6 text-center">
@@ -328,7 +366,7 @@ export function DashboardPage() {
             </div>
           )}
         </div>
-      </section>
-    </div>
+      </motion.section>
+    </motion.div>
   );
 }

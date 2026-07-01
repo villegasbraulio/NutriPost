@@ -21,11 +21,17 @@ env = environ.Env(
     GROQ_API_BASE_URL=(str, "https://api.groq.com/openai/v1"),
     GROQ_MODEL_NAME=(str, "llama-3.3-70b-versatile"),
     GROQ_VISION_MODEL_NAME=(str, "meta-llama/llama-4-scout-17b-16e-instruct"),
+    PUBLIC_DEMO_ENABLED=(bool, False),
+    PUBLIC_DEMO_USERNAME=(str, "demo"),
+    PUBLIC_DEMO_PASSWORD=(str, "DemoPass123!"),
 )
 environ.Env.read_env(ROOT_DIR / ".env")
 
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG")
+PUBLIC_DEMO_ENABLED = env.bool("PUBLIC_DEMO_ENABLED", default=DEBUG)
+PUBLIC_DEMO_USERNAME = env("PUBLIC_DEMO_USERNAME", default="demo")
+PUBLIC_DEMO_PASSWORD = env("PUBLIC_DEMO_PASSWORD", default="DemoPass123!")
 
 render_external_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
 default_allowed_hosts = ["127.0.0.1", "localhost"]

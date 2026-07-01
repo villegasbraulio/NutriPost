@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Sparkles } from "lucide-react";
 
 import { useLanguage } from "../hooks/useLanguage";
 import { LoadingSkeleton } from "./LoadingSkeleton";
@@ -24,8 +24,9 @@ export function WeeklyInsightCard({ insight, loading, onRefresh }) {
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-secondary">
-            🧠 {isSpanish ? "Tu insight semanal" : "Your weekly insight"}
+          <p className="inline-flex items-center gap-2 text-sm font-semibold text-secondary">
+            <Sparkles className="h-4 w-4" />
+            {isSpanish ? "Tu insight semanal" : "Your weekly insight"}
           </p>
           <p className="text-sm italic leading-relaxed text-textPrimary/90">
             {insight.available ? insight.content : insight.message}
@@ -34,7 +35,7 @@ export function WeeklyInsightCard({ insight, loading, onRefresh }) {
         <button
           type="button"
           onClick={onRefresh}
-          className="self-start rounded-2xl border border-white/10 p-2 text-textMuted transition hover:border-secondary/40 hover:text-textPrimary"
+          className="self-start rounded-2xl border border-white/10 bg-white/5 p-2 text-textMuted transition hover:border-secondary/40 hover:text-textPrimary"
           aria-label={isSpanish ? "Actualizar insight semanal" : "Refresh weekly insight"}
         >
           <RefreshCw className="h-4 w-4" />

@@ -53,6 +53,12 @@ export function AuthProvider({ children }) {
     return payload;
   };
 
+  const loginDemo = async () => {
+    const payload = await authService.loginDemo();
+    setUser(payload.user);
+    return payload;
+  };
+
   const register = async (values) => {
     const payload = await authService.register(values);
     setUser(payload.user);
@@ -69,8 +75,6 @@ export function AuthProvider({ children }) {
     setUser(data);
     return data;
   };
-
-  const loginDemo = () => login({ username: "demo", password: "DemoPass123!" });
 
   return (
     <AuthContext.Provider

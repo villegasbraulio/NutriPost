@@ -27,7 +27,7 @@ const registerSchema = z.object({
 
 export function RegisterPage() {
   const navigate = useNavigate();
-  const { register: registerUser, loading, user } = useAuth();
+  const { register: registerUser, loginDemo, loading, user } = useAuth();
   const { isSpanish } = useLanguage();
   const copy = isSpanish
     ? {
@@ -56,6 +56,10 @@ export function RegisterPage() {
         registerLoading: "Creando tu perfil de NutriPost...",
         registerSuccess: "Cuenta creada.",
         registerError: "No pudimos completar el registro.",
+        demoButton: "Probar demo sin cuenta",
+        demoLoading: "Abriendo demo...",
+        demoSuccess: "Sesion demo lista.",
+        demoError: "No pudimos abrir la demo.",
         loginPrefix: "Ya tienes cuenta?",
         loginLink: "Ingresar",
       }
@@ -85,6 +89,10 @@ export function RegisterPage() {
         registerLoading: "Creating your NutriPost profile...",
         registerSuccess: "Account created.",
         registerError: "Registration failed.",
+        demoButton: "Try demo instead",
+        demoLoading: "Opening demo...",
+        demoSuccess: "Demo session ready.",
+        demoError: "We could not open the demo.",
         loginPrefix: "Already have an account?",
         loginLink: "Sign in",
       };
@@ -122,6 +130,19 @@ export function RegisterPage() {
       error: (error) => error.response?.data?.message || copy.registerError,
     });
     navigate("/dashboard", { replace: true });
+  };
+
+  const handleDemo = async () => {
+    try {
+      await toast.promise(loginDemo(), {
+        loading: copy.demoLoading,
+        success: copy.demoSuccess,
+        error: (error) => error.response?.data?.message || copy.demoError,
+      });
+      navigate("/dashboard", { replace: true });
+    } catch {
+      return;
+    }
   };
 
   return (
@@ -197,6 +218,13 @@ export function RegisterPage() {
           >
             <UserPlus className="h-4 w-4" />
             {isSubmitting ? copy.creating : copy.create}
+          </button>
+          <button
+            type="button"
+            onClick={handleDemo}
+            className="flex items-center justify-center rounded-2xl border border-white/10 px-4 py-3 font-semibold text-textPrimary transition hover:border-secondary/40 hover:bg-secondary/10 sm:col-span-2"
+          >
+            {copy.demoButton}
           </button>
         </form>
 

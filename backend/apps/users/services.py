@@ -8,7 +8,7 @@ from django.db.utils import OperationalError
 from django.utils import timezone
 from rest_framework.response import Response
 
-from apps.activities.services import calculate_bmr, calculate_tdee
+from apps.activities.services import calculate_bmr, calculate_tdee, seed_activity_types, seed_demo_user_data
 
 from .models import User
 
@@ -17,6 +17,17 @@ GOAL_CALORIE_ADJUSTMENTS = {
     "reduce_fat": Decimal("-300"),
     "maintain": Decimal("0"),
     "gain": Decimal("300"),
+}
+PUBLIC_DEMO_PROFILE_DEFAULTS = {
+    "email": "demo@nutripost.dev",
+    "first_name": "Demo",
+    "last_name": "Athlete",
+    "weight_kg": Decimal("74.50"),
+    "height_cm": Decimal("178.00"),
+    "age": 29,
+    "gender": "male",
+    "activity_level": "active",
+    "goal": "maintain",
 }
 
 
@@ -173,6 +184,35 @@ def sync_current_week_daily_goals(user: User, reference_date: date | None = None
     week_start = current_date - timedelta(days=current_date.weekday())
     for offset in range(7):
         sync_daily_goal(user, week_start + timedelta(days=offset))
+
+
+def ensure_public_demo_user(*, seed_data: bool = False) -> User:
+    """Create or refresh the public demo account used by anonymous visitors."""
+
+    seed_activity_types()
+    user, created = User.objects.get_or_create(
+        username=settings.PUBLIC_DEMO_USERNAME,
+        defaults=PUBLIC_DEMO_PROFILE_DEFAULTS,
+    )
+
+    profile_changed = created
+    for field, value in PUBLIC_DEMO_PROFILE_DEFAULTS.items():
+        if getattr(user, field) != value:
+            setattr(user, field, value)
+            profile_changed = True
+
+    if not user.check_password(settings.PUBLIC_DEMO_PASSWORD):
+        user.set_password(settings.PUBLIC_DEMO_PASSWORD)
+        profile_changed = True
+
+    if profile_changed:
+        user.save()
+
+    if seed_data and (created or not user.activity_logs.exists() or not user.food_logs.exists()):
+        seed_demo_user_data(user=user, days=30)
+
+    sync_current_week_daily_goals(user, timezone.localdate())
+    return user
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:

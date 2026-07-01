@@ -12,14 +12,20 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User
 from .serializers import LoginSerializer, RegisterSerializer, UserProfileSerializer
-from .services import clear_auth_cookies, set_auth_cookies, sync_current_week_daily_goals, sync_daily_goal
+from .services import (
+    clear_auth_cookies,
+    ensure_public_demo_user,
+    set_auth_cookies,
+    sync_current_week_daily_goals,
+    sync_daily_goal,
+)
 
 
 class AuthViewSet(viewsets.GenericViewSet):
     queryset = User.objects.all()
 
     def get_permissions(self):
-        if self.action in {"register", "login", "refresh"}:
+        if self.action in {"register", "login", "refresh", "demo_login"}:
             permission_classes = [AllowAny]
         else:
             permission_classes = [IsAuthenticated]
@@ -56,6 +62,20 @@ class AuthViewSet(viewsets.GenericViewSet):
         sync_current_week_daily_goals(user, timezone.localdate())
         refresh = RefreshToken.for_user(user)
         response = Response({"message": "Login successful.", "user": UserProfileSerializer(user).data})
+        set_auth_cookies(response, str(refresh.access_token), str(refresh))
+        return response
+
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny], url_path="demo-login")
+    def demo_login(self, request):
+        if not settings.PUBLIC_DEMO_ENABLED:
+            return Response(
+                {"message": "Public demo is not enabled."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        user = ensure_public_demo_user()
+        refresh = RefreshToken.for_user(user)
+        response = Response({"message": "Demo login successful.", "user": UserProfileSerializer(user).data})
         set_auth_cookies(response, str(refresh.access_token), str(refresh))
         return response
 

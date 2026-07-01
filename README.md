@@ -56,6 +56,7 @@ Aplicación web full-stack construida con Django REST Framework y React que inte
 - Badge global de notificaciones en el layout autenticado para visibilidad inmediata desde cualquier pantalla.
 - Pipeline de CI con GitHub Actions para ejecutar tests de backend, lint del frontend y build en cada push o pull request.
 - Cuenta demo y comandos de seed para mostrar datos realistas en un entorno local.
+- Acceso demo publico configurable para que visitantes prueben la app sin registrarse.
 
 ## Arquitectura
 
@@ -205,6 +206,14 @@ python manage.py migrate
 python manage.py seed_activities
 python manage.py seed_demo_user
 python manage.py runserver
+```
+
+Con `DEBUG=True`, la demo publica queda habilitada por defecto. Si quieres controlarla de forma explicita, puedes usar:
+
+```bash
+export PUBLIC_DEMO_ENABLED=true
+export PUBLIC_DEMO_USERNAME=demo
+export PUBLIC_DEMO_PASSWORD=DemoPass123!
 ```
 
 El backend queda disponible en:

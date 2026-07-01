@@ -19,7 +19,7 @@ const loginSchema = z.object({
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loading, user } = useAuth();
+  const { login, loginDemo, loading, user } = useAuth();
   const { isSpanish } = useLanguage();
   const copy = isSpanish
     ? {
@@ -31,6 +31,11 @@ export function LoginPage() {
         loginLoading: "Ingresando...",
         loginSuccess: "Bienvenido otra vez.",
         loginError: "No pudimos iniciar sesion.",
+        demoButton: "Entrar a la demo",
+        demoLoading: "Abriendo demo...",
+        demoSuccess: "Sesion demo lista.",
+        demoError: "No pudimos abrir la demo.",
+        demoHint: "Prefieres mirar primero? Entra a la demo sin crear cuenta.",
         createPrefix: "No tienes cuenta?",
         createLink: "Crear una cuenta",
       }
@@ -43,6 +48,11 @@ export function LoginPage() {
         loginLoading: "Logging you in...",
         loginSuccess: "Welcome back.",
         loginError: "Login failed.",
+        demoButton: "Enter Demo",
+        demoLoading: "Opening demo...",
+        demoSuccess: "Demo session ready.",
+        demoError: "We could not open the demo.",
+        demoHint: "Want to explore first? Enter the demo without creating an account.",
         createPrefix: "New here?",
         createLink: "Create an account",
       };
@@ -68,6 +78,20 @@ export function LoginPage() {
         loading: copy.loginLoading,
         success: copy.loginSuccess,
         error: (error) => error.response?.data?.message || copy.loginError,
+      });
+      navigate(redirectPath, { replace: true });
+    } catch {
+      return;
+    }
+  };
+
+  const handleDemo = async () => {
+    const redirectPath = location.state?.from?.pathname || "/dashboard";
+    try {
+      await toast.promise(loginDemo(), {
+        loading: copy.demoLoading,
+        success: copy.demoSuccess,
+        error: (error) => error.response?.data?.message || copy.demoError,
       });
       navigate(redirectPath, { replace: true });
     } catch {
@@ -118,8 +142,16 @@ export function LoginPage() {
             <LogIn className="h-4 w-4" />
             {isSubmitting ? copy.loading : copy.button}
           </button>
+          <button
+            type="button"
+            onClick={handleDemo}
+            className="flex w-full items-center justify-center rounded-2xl border border-white/10 px-4 py-3 font-semibold text-textPrimary transition hover:border-secondary/40 hover:bg-secondary/10"
+          >
+            {copy.demoButton}
+          </button>
         </form>
 
+        <p className="mt-4 text-sm text-textMuted">{copy.demoHint}</p>
         <p className="mt-6 text-sm text-textMuted">
           {copy.createPrefix}{" "}
           <Link className="font-semibold text-primary" to="/auth/register">

@@ -5,6 +5,10 @@ export const authService = {
     const { data } = await apiClient.post("/auth/login/", values);
     return data;
   },
+  async loginDemo() {
+    const { data } = await apiClient.post("/auth/demo-login/");
+    return data;
+  },
   async register(values) {
     const { data } = await apiClient.post("/auth/register/", values);
     return data;
